@@ -46,7 +46,7 @@ Below are the steps to add the script to AI Dungeon.  The steps may need to be s
    ```
 12. Select the `Library` tab.
 13. Remove all existing code.
-14. Copy the entire contents from this file and paste it into the empty Library tab.
+14. Copy the entire contents from [this file](https://github.com/nathanbelles/WeaveScript/blob/main/dist/WeaveScript.js) and paste it into the empty Library tab.
 15. Finally, click the large yellow SAVE button in the top right corner.
 
 ---
@@ -196,7 +196,7 @@ Variables can hold any of these types. The type is determined by what you assign
 
 ## State variables
 
-Regular variables reset every time the script runs and are local to their section. State variables persist across turns and sections — AI Dungeon remembers their value from the last time the script ran, making them useful for tracking things that change over the course of a story.
+Regular variables reset every time the script runs and are local to their section. State variables persist across turns and sections; AI Dungeon remembers their value from the last time the script ran, making them useful for tracking things that change over the course of a story.
 
 State variables are prefixed with `$` and do not need to be declared before use:
 
