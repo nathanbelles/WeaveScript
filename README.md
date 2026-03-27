@@ -46,7 +46,7 @@ Below are the steps to add the script to AI Dungeon.  The steps may need to be s
    ```
 12. Select the `Library` tab.
 13. Remove all existing code.
-14. Copy the entire contents from [this file](https://github.com/nathanbelles/WeaveScript/blob/main/dist/WeaveScript.js) and paste it into the empty Library tab.
+14. Copy the entire contents from [this file](https://github.com/nathanb-dev/WeaveScript/blob/main/dist/WeaveScript.js) and paste it into the empty Library tab.
 15. Finally, click the large yellow SAVE button in the top right corner.
 
 ---
