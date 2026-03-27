@@ -1,0 +1,20 @@
+{
+  "name": "advancedaidungeonscripting",
+  "version": "1.0.0",
+  "description": "A lightweight scripting layer for AI Dungeon that adds variables, conditionals, and arithmetic to your prompts.",
+  "main": "evaluator.js",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build": "npx rollup -c"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.2",
+    "rollup": "^4.60.0",
+    "vitest": "^4.1.2"
+  }
+}

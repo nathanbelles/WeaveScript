@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+
+# Lock file
+package-lock.json
+
+# IDE and OS files
+.DS_Store
+*.orig
+.vscode/
+.idea/
+Thumbs.db
+coverage/
