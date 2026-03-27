@@ -1,9 +1,6 @@
 # Dependencies
 node_modules/
 
-# Build outputs
-dist/
-
 # IDE and OS files
 .DS_Store
 *.orig
