@@ -76,6 +76,23 @@ describe("WeaveScript integration (lexer + parser + evaluator)", () => {
     );
   });
 
+  it("null and undefined literals render as empty output", () => {
+    expect(WeaveScriptEvaluator.runScript("A#{null}B")).toBe("AB");
+    expect(WeaveScriptEvaluator.runScript("A#{undefined}B")).toBe("AB");
+  });
+
+  it("if null treats null as falsey", () => {
+    expect(WeaveScriptEvaluator.runScript('#{if null then "t" else "f"}')).toBe(
+      "f",
+    );
+  });
+
+  it("if !null treats !null as truthy", () => {
+    expect(WeaveScriptEvaluator.runScript('#{if !null then "t" else "f"}')).toBe(
+      "t",
+    );
+  });
+
   it("throws on division by zero and modulo by zero", () => {
     expect(() => WeaveScriptEvaluator.runScript("#{10 / 0}")).toThrow(
       /Division by zero/,
@@ -156,6 +173,96 @@ describe("WeaveScript integration (lexer + parser + evaluator)", () => {
     }
   });
 
+  it("variable assignment runs in if consequent body", () => {
+    expect(
+      WeaveScriptEvaluator.runScript(
+        "#{if true then var Y = 10 else var Y = 20; Y}",
+      ),
+    ).toBe("10");
+  });
+
+  it("variable assignment runs in else body", () => {
+    expect(
+      WeaveScriptEvaluator.runScript(
+        "#{if false then var Y = 10 else var Y = 20; Y}",
+      ),
+    ).toBe("20");
+  });
+
+  it("state variable assignment runs in if consequent body", () => {
+    globalThis.state = {};
+    try {
+      expect(
+        WeaveScriptEvaluator.runScript(
+          "#{if true then $flag = 30 else $flag = 40; $flag}",
+        ),
+      ).toBe("30");
+      expect(globalThis.state.flag).toBe(30);
+    } finally {
+      delete globalThis.state;
+    }
+  });
+
+  it("state variable assignment runs in else body", () => {
+    globalThis.state = {};
+    try {
+      expect(
+        WeaveScriptEvaluator.runScript(
+          "#{if false then $flag = 30 else $flag = 40; $flag}",
+        ),
+      ).toBe("40");
+      expect(globalThis.state.flag).toBe(40);
+    } finally {
+      delete globalThis.state;
+    }
+  });
+
+  it("== null works for undefined state variables", () => {
+    globalThis.state = {};
+    try {
+      expect(
+        WeaveScriptEvaluator.runScript('#{if $missing == null then "t" else "f"}'),
+      ).toBe("t");
+    } finally {
+      delete globalThis.state;
+    }
+  });
+
+  it("== null works for defined state variables", () => {
+    globalThis.state = {};
+    try {
+      expect(WeaveScriptEvaluator.runScript("#{$gold = 100}")).toBe("");
+      expect(
+        WeaveScriptEvaluator.runScript('#{if $gold == null then "t" else "f"}'),
+      ).toBe("f");
+    } finally {
+      delete globalThis.state;
+    }
+  });
+
+  it("!= null works for undefined state variables", () => {
+    globalThis.state = {};
+    try {
+      expect(
+        WeaveScriptEvaluator.runScript('#{if $missing != null then "t" else "f"}'),
+      ).toBe("f");
+    } finally {
+      delete globalThis.state;
+    }
+  });
+
+  it("!= null works for defined state variables", () => {
+    globalThis.state = {};
+    try {
+      expect(WeaveScriptEvaluator.runScript("#{$gold = 100}")).toBe("");
+      expect(
+        WeaveScriptEvaluator.runScript('#{if $gold != null then "t" else "f"}'),
+      ).toBe("t");
+    } finally {
+      delete globalThis.state;
+    }
+  });
+
   it("lexer tolerates whitespace inside blocks (integration)", () => {
     const input = "X#{  1 +\n 2\t}Y";
     expect(WeaveScriptEvaluator.runScript(input)).toBe("X3Y");
@@ -192,12 +299,10 @@ describe("WeaveScript integration (lexer + parser + evaluator)", () => {
     );
   });
 
-  it("fails when reading an undefined state variable (evaluator error)", () => {
+  it("missing state variables render as empty output", () => {
     globalThis.state = {};
     try {
-      expect(() => WeaveScriptEvaluator.runScript("#{$gold}")).toThrow(
-        /Undefined state variable \$gold/,
-      );
+      expect(WeaveScriptEvaluator.runScript("A#{$gold}B")).toBe("AB");
     } finally {
       delete globalThis.state;
     }

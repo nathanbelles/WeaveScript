@@ -31,6 +31,17 @@ describe("WeaveScriptLexer", () => {
     expect(tokens.map((t) => t.value)).toEqual(["1", "+", "2"]);
   });
 
+  it("tokenizes null/undefined literals inside blocks", () => {
+    const segments = WeaveScriptLexer.tokenize("A#{null}B#{undefined}C");
+    const nullTokens = segments[1];
+    const undefTokens = segments[3];
+
+    expect(nullTokens.map((t) => t.type)).toEqual([WeaveScriptLexer.TokenType.NULL]);
+    expect(nullTokens.map((t) => t.value)).toEqual(["null"]);
+    expect(undefTokens.map((t) => t.type)).toEqual([WeaveScriptLexer.TokenType.NULL]);
+    expect(undefTokens.map((t) => t.value)).toEqual(["undefined"]);
+  });
+
   it("finds block end when string contains braces", () => {
     const src = '#{"{ not a close } still in string"} tail';
     const end = WeaveScriptLexer.findBlockEnd(src, 2);

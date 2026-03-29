@@ -23,7 +23,9 @@ export class WeaveScriptEvaluator {
      * @returns {boolean} Truthy status under WeaveScript rules.
      */
     static isTruthy(value) {
-        if(typeof(value) === "boolean") {
+        if(value === WeaveScriptEvaluator.NULL) {
+            return false;
+        } else if(typeof(value) === "boolean") {
             return value;
         } else if (typeof(value) === "number") {
             return value != 0;
@@ -43,6 +45,13 @@ export class WeaveScriptEvaluator {
     static isNumber(a,b) {
         return typeof(a) === "number" && typeof(b) === "number"
     }
+
+    /**
+     * Create a constant to represent null values
+     */
+    static NULL = Object.freeze({
+        toString() { return ""; }
+    });
 
     /**
      * Creates a new evaluator with a fresh local variable environment.
@@ -125,6 +134,8 @@ export class WeaveScriptEvaluator {
                 .replace(/\\\\/g, '\\');
         } else if (node instanceof WeaveScriptParser.BoolLiteral) {
             return node.value;
+        } else if (node instanceof WeaveScriptParser.NullLiteral) {
+            return WeaveScriptEvaluator.NULL;
         } else if (node instanceof WeaveScriptParser.VariableRef) {
             if(!Object.hasOwn(this.env, node.identifier)) {
                 throw new WeaveScriptEvaluator.EvalError(`Undefined variable: ${node.identifier}`);
@@ -137,11 +148,10 @@ export class WeaveScriptEvaluator {
         } else if (node instanceof WeaveScriptParser.StateVarRef) {
             const identifier = node.identifier.slice(1);
             if(!Object.hasOwn(state, identifier)) {
-                throw new WeaveScriptEvaluator.EvalError(`Undefined state variable ${node.identifier}`);
+                return WeaveScriptEvaluator.NULL;
             }
             return state[identifier];
-        }
-        else {
+        } else {
             throw new WeaveScriptEvaluator.EvalError(`Unknown node type: ${node?.constructor?.name ?? node}`);
         }
     }

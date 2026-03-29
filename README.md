@@ -184,13 +184,46 @@ Today I ate cheese
 
 ### Variable types
 
-|Type|Example values|
-|---|---|
-|Number|`19`, `3.14`, `-7`|
-|String|`"hello"`, `'world'`|
-|Boolean|`true`, `false`|
+
+| Type    | Example values       |
+| ------- | -------------------- |
+| Number  | `19`, `3.14`, `-7`   |
+| String  | `"hello"`, `'world'` |
+| Boolean | `true`, `false`      |
+| Null    | `null`, `undefined`  |
+
 
 Variables can hold any of these types. The type is determined by what you assign.
+
+---
+
+## Null literals
+
+WeaveScript supports the null literals `null` and `undefined` (they are treated the same).
+
+### Output and truthiness
+
+- `null` renders as an empty string when output.
+- `null` is falsy in conditionals.
+
+```
+#{null}                         // outputs nothing
+#{if null then "yes" else "no"} // outputs: no
+```
+
+### Checking for null
+
+Use comparisons to test whether a value is null:
+
+```
+#{var X = null; if X == null then "missing" else X}
+```
+
+You can also use the truthiness of null:
+
+```
+#{var X = null; if !X then "missing" else X}
+```
 
 ---
 
@@ -233,7 +266,7 @@ Unlike regular variables, state variables can be reassigned freely:
 
 ```
 #{$triggerCount = $triggerCount + 1}
-You have though about this tavern #{$triggerCount} times.
+You have thought about this tavern #{$triggerCount} times.
 ```
 
 **Flags** — remember whether something has occurred:
@@ -253,16 +286,22 @@ You have #{$gold} gold pieces.
 
 ### Regular variables vs state variables
 
-||Regular variable|State variable|
-|---|---|---|
-|Syntax|`Name`|`$Name`|
-|Persists across turns|No|Yes|
-|Persists between sections|No|Yes|
-|Needs declaration|Yes (`var`/`set`)|No|
-|Can be reassigned|No|Yes|
 
-> **Note:** Reading a state variable that has never been set will produce an error. Make sure state variables are initialised before they are read — either earlier in the same section, or in a section that runs first.
+|                           | Regular variable  | State variable |
+| ------------------------- | ----------------- | -------------- |
+| Syntax                    | `Name`            | `$Name`        |
+| Persists across turns     | No                | Yes            |
+| Persists between sections | No                | Yes            |
+| Needs declaration         | Yes (`var`/`set`) | No             |
+| Can be reassigned         | No                | Yes            |
 
+
+> **Note:** Reading a state variable that has never been set evaluates to `null`. If you need a default value, initialise it explicitly:
+>
+> ```
+> #{if $visitCount == null then $visitCount = 0}
+> #{$visitCount = $visitCount + 1}
+> ```
 
 ---
 

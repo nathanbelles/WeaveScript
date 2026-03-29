@@ -98,6 +98,11 @@ export class WeaveScriptParser {
         }
     }
 
+    /** AST node for null literals. */
+    static NullLiteral = class {
+        constructor() { }
+    }
+
     /** AST node for regular variable references. */
     static VariableRef = class {
         /**
@@ -262,11 +267,11 @@ export class WeaveScriptParser {
         this.advance();
         const condition = this.parseOr();
         this.expect(WeaveScriptLexer.TokenType.KW_THEN);
-        const consequent = this.parseExpression();
+        const consequent = this.parseStatement();
         let alternate = null;
         if(this.peek() && this.peek().type === WeaveScriptLexer.TokenType.KW_ELSE) {
             this.advance();
-            alternate = this.parseExpression();
+            alternate = this.parseStatement();
         }
         return new WeaveScriptParser.IfExpr(condition, consequent, alternate);
     }
@@ -392,6 +397,9 @@ export class WeaveScriptParser {
             case WeaveScriptLexer.TokenType.BOOL:
                 this.advance();
                 return new WeaveScriptParser.BoolLiteral(token.value === "true");
+            case WeaveScriptLexer.TokenType.NULL:
+                this.advance();
+                return new WeaveScriptParser.NullLiteral();
             case WeaveScriptLexer.TokenType.IDENTIFIER:
                 this.advance();
                 return new WeaveScriptParser.VariableRef(token.value);

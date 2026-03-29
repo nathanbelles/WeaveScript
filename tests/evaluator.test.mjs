@@ -73,6 +73,9 @@ vi.mock("../parser.js", () => {
       this.value = value;
     }
   }
+  class NullLiteral {
+    constructor() {}
+  }
   class VariableRef {
     constructor(identifier) {
       this.identifier = identifier;
@@ -111,6 +114,7 @@ vi.mock("../parser.js", () => {
   WeaveScriptParser.NumberLiteral = NumberLiteral;
   WeaveScriptParser.StringLiteral = StringLiteral;
   WeaveScriptParser.BoolLiteral = BoolLiteral;
+  WeaveScriptParser.NullLiteral = NullLiteral;
   WeaveScriptParser.VariableRef = VariableRef;
   WeaveScriptParser.StateVarAssign = StateVarAssign;
   WeaveScriptParser.StateVarRef = StateVarRef;
@@ -359,6 +363,49 @@ describe("WeaveScriptEvaluator.runScript", () => {
     );
   });
 
+  it("null literal evaluates to empty output", () => {
+    mocked.segments.push(
+      tokenBlock(
+        new WeaveScriptParser.Block([new WeaveScriptParser.NullLiteral()]),
+      ),
+    );
+    expect(WeaveScriptEvaluator.runScript("ignored by mock")).toBe("");
+  });
+
+  it("== works for NULL-valued variables", () => {
+    mocked.segments.push(
+      tokenBlock(
+        new WeaveScriptParser.Block([
+          new WeaveScriptParser.VarDecl("X", new WeaveScriptParser.NullLiteral()),
+          new WeaveScriptParser.BinaryOp(
+            "==",
+            new WeaveScriptParser.VariableRef("X"),
+            new WeaveScriptParser.NullLiteral(),
+          ),
+        ]),
+      ),
+    );
+
+    expect(WeaveScriptEvaluator.runScript("ignored by mock")).toBe("true");
+  });
+
+  it("!= works for NULL-valued variables", () => {
+    mocked.segments.push(
+      tokenBlock(
+        new WeaveScriptParser.Block([
+          new WeaveScriptParser.VarDecl("X", new WeaveScriptParser.NullLiteral()),
+          new WeaveScriptParser.BinaryOp(
+            "!=",
+            new WeaveScriptParser.VariableRef("X"),
+            new WeaveScriptParser.NullLiteral(),
+          ),
+        ]),
+      ),
+    );
+
+    expect(WeaveScriptEvaluator.runScript("ignored by mock")).toBe("false");
+  });
+
   it("ignores unknown segment types in runScript", () => {
     mocked.segments.push(
       new WeaveScriptLexer.PlainText("A"),
@@ -589,12 +636,15 @@ describe("WeaveScriptEvaluator.runScript", () => {
     expect(WeaveScriptEvaluator.runScript("ignored by mock")).toBe("123");
 
     delete globalThis.state;
-    delete WeaveScriptEvaluator.prototype.state;
   });
 
   it("covers isTruthy() for non-primitive values", () => {
     expect(WeaveScriptEvaluator.isTruthy({})).toBe(false);
     expect(WeaveScriptEvaluator.isTruthy(null)).toBe(false);
+  });
+
+  it("covers isTruthy() for NULL sentinel", () => {
+    expect(WeaveScriptEvaluator.isTruthy(WeaveScriptEvaluator.NULL)).toBe(false);
   });
 
   it("covers isTruthy() for strings", () => {
@@ -651,21 +701,20 @@ describe("WeaveScriptEvaluator.runScript", () => {
     expect(WeaveScriptEvaluator.runScript("ignored by mock")).toBe("5");
   });
 
-  it("throws on undefined state variable references", () => {
+  it("missing state variable references evaluate to empty output", () => {
     globalThis.state = {};
-    WeaveScriptEvaluator.prototype.state = {};
+    try {
+      mocked.segments.push(
+        tokenBlock(
+          new WeaveScriptParser.Block([
+            new WeaveScriptParser.StateVarRef("$gold"),
+          ]),
+        ),
+      );
 
-    mocked.segments.push(
-      tokenBlock(
-        new WeaveScriptParser.Block([new WeaveScriptParser.StateVarRef("$gold")]),
-      ),
-    );
-
-    expect(() => WeaveScriptEvaluator.runScript("ignored by mock")).toThrow(
-      /Undefined state variable \$gold/,
-    );
-
-    delete globalThis.state;
-    delete WeaveScriptEvaluator.prototype.state;
+      expect(WeaveScriptEvaluator.runScript("ignored by mock")).toBe("");
+    } finally {
+      delete globalThis.state;
+    }
   });
 });
