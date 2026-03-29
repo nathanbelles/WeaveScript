@@ -106,6 +106,11 @@ export class WeaveScriptEvaluator {
             }
         } else if(node instanceof WeaveScriptParser.BinaryOp) {
             const left = this.evaluate(node.left);
+            switch(node.operator) {
+                case "and": return WeaveScriptEvaluator.isTruthy(left) && WeaveScriptEvaluator.isTruthy(this.evaluate(node.right));
+                case "or": return WeaveScriptEvaluator.isTruthy(left) || WeaveScriptEvaluator.isTruthy(this.evaluate(node.right));
+                case "??": return left === WeaveScriptEvaluator.NULL ? this.evaluate(node.right) : left;
+            }
             const right = this.evaluate(node.right);
             switch(node.operator) {
                 case "+":
@@ -128,8 +133,6 @@ export class WeaveScriptEvaluator {
                 case ">": return left > right;
                 case "<=": return left <= right;
                 case ">=": return left >= right;
-                case "and": return WeaveScriptEvaluator.isTruthy(left) && WeaveScriptEvaluator.isTruthy(right);
-                case "or": return WeaveScriptEvaluator.isTruthy(left) || WeaveScriptEvaluator.isTruthy(right);
                 default: throw new WeaveScriptEvaluator.EvalError(`Unknown operator: ${node.operator}`);
             }
         } else if (node instanceof WeaveScriptParser.UnaryOp) {
