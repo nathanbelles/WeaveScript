@@ -246,6 +246,18 @@ export class WeaveScriptParser {
         return new WeaveScriptParser.VarDecl(name, value);
     }
 
+    parseTernary() {
+        const condition = this.parseNullCoal();
+        if(this.peek() && this.peek().type === WeaveScriptLexer.TokenType.OP_TERNARY) {
+            this.advance();
+            const consequent = this.parseNullCoal();
+            this.expect(WeaveScriptLexer.TokenType.COLON);
+            const alternate = this.parseNullCoal();
+            return new WeaveScriptParser.IfExpr(condition, consequent, alternate);
+        }
+        return condition;
+    }
+
     /**
      * Parses the highest-level expression grammar.
      *
@@ -255,7 +267,7 @@ export class WeaveScriptParser {
         if(this.peek() && this.peek().type === WeaveScriptLexer.TokenType.KW_IF) {
             return this.parseIfExpr();
         }
-        return this.parseNullCoal();
+        return this.parseTernary();
     }
 
     /**
@@ -265,7 +277,7 @@ export class WeaveScriptParser {
      */
     parseIfExpr() {
         this.advance();
-        const condition = this.parseNullCoal();
+        const condition = this.parseTernary();
         this.expect(WeaveScriptLexer.TokenType.KW_THEN);
         const consequent = this.parseStatement();
         let alternate = null;

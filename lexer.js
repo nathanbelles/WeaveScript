@@ -82,12 +82,14 @@ export class WeaveScriptLexer {
         'OP_AND',
         'OP_OR',
         'OP_NULLCOAL',
+        'OP_TERNARY',
         'OP_NOT',
         'OP_ASSIGN',
         'OP_ARITH',
         'LPAREN',
         'RPAREN',
         'SEMICOLON',
+        'COLON',
         'IDENTIFIER'
     );
 
@@ -118,12 +120,14 @@ export class WeaveScriptLexer {
         [WeaveScriptLexer.TokenType.OP_AND]: /&&/,
         [WeaveScriptLexer.TokenType.OP_OR]: /\|\|/,
         [WeaveScriptLexer.TokenType.OP_NULLCOAL]: /\?\?/,
+        [WeaveScriptLexer.TokenType.OP_TERNARY]: /\?/,
         [WeaveScriptLexer.TokenType.OP_NOT]: /!/,
         [WeaveScriptLexer.TokenType.OP_ASSIGN]: /=/,
         [WeaveScriptLexer.TokenType.OP_ARITH]: /[+\-*\/%]/,
         [WeaveScriptLexer.TokenType.LPAREN]: /\(/,
         [WeaveScriptLexer.TokenType.RPAREN]: /\)/,
         [WeaveScriptLexer.TokenType.SEMICOLON]: /;/,
+        [WeaveScriptLexer.TokenType.COLON]: /:/,
         [WeaveScriptLexer.TokenType.IDENTIFIER]: /[a-zA-Z_][a-zA-Z0-9_]*/,
     });
 
@@ -154,12 +158,14 @@ export class WeaveScriptLexer {
         [WeaveScriptLexer.TokenType.OP_AND]: "&&",
         [WeaveScriptLexer.TokenType.OP_OR]: "||",
         [WeaveScriptLexer.TokenType.OP_NULLCOAL]: "??",
+        [WeaveScriptLexer.TokenType.OP_TERNARY]: "?",
         [WeaveScriptLexer.TokenType.OP_NOT]: "!",
         [WeaveScriptLexer.TokenType.OP_ASSIGN]: "=",
         [WeaveScriptLexer.TokenType.OP_ARITH]: "an aritmentic operator",
         [WeaveScriptLexer.TokenType.LPAREN]: "(",
         [WeaveScriptLexer.TokenType.RPAREN]: ")",
         [WeaveScriptLexer.TokenType.SEMICOLON]: ";",
+        [WeaveScriptLexer.TokenType.COLON]: ":",
         [WeaveScriptLexer.TokenType.IDENTIFIER]: "an identifier",
     });
 
