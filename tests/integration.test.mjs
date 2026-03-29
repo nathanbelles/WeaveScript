@@ -42,6 +42,26 @@ describe("WeaveScript integration (lexer + parser + evaluator)", () => {
     expect(WeaveScriptEvaluator.runScript(input2)).toBe("ok");
   });
 
+  it("and does not evaluate right side when left is false (integration)", () => {
+    expect(WeaveScriptEvaluator.runScript("#{false and MissingVar}")).toBe("false");
+  });
+
+  it("or does not evaluate right side when left is true (integration)", () => {
+    expect(WeaveScriptEvaluator.runScript("#{true or MissingVar}")).toBe("true");
+  });
+
+  it("and evaluates right side when left is true (integration)", () => {
+    expect(() => WeaveScriptEvaluator.runScript("#{true and MissingVar}")).toThrow(
+      /Undefined variable: MissingVar/,
+    );
+  });
+
+  it("or evaluates right side when left is false (integration)", () => {
+    expect(() => WeaveScriptEvaluator.runScript("#{false or MissingVar}")).toThrow(
+      /Undefined variable: MissingVar/,
+    );
+  });
+
   it("unescapes string literals correctly", () => {
     const input = '#{"a\\\\b \\"x\\" \\\'y\\\'"}';
     expect(WeaveScriptEvaluator.runScript(input)).toBe("a\\b \"x\" 'y'");
@@ -91,6 +111,41 @@ describe("WeaveScript integration (lexer + parser + evaluator)", () => {
     expect(WeaveScriptEvaluator.runScript('#{if !null then "t" else "f"}')).toBe(
       "t",
     );
+  });
+
+  it("null coalescing ?? uses right side when left is null", () => {
+    expect(WeaveScriptEvaluator.runScript('#{null ?? "fallback"}')).toBe(
+      "fallback",
+    );
+  });
+
+  it("null coalescing ?? keeps left when left is not null", () => {
+    expect(WeaveScriptEvaluator.runScript('#{1 ?? "fallback"}')).toBe("1");
+  });
+
+  it("null coalescing ?? chains left-associatively", () => {
+    expect(WeaveScriptEvaluator.runScript("#{null ?? null ?? 7}")).toBe("7");
+  });
+
+  it("null coalescing ?? with missing state variable uses right side", () => {
+    globalThis.state = {};
+    try {
+      expect(WeaveScriptEvaluator.runScript('#{$missing ?? "default"}')).toBe(
+        "default",
+      );
+    } finally {
+      delete globalThis.state;
+    }
+  });
+
+  it("null coalescing ?? with defined state variable keeps left side", () => {
+    globalThis.state = {};
+    try {
+      expect(WeaveScriptEvaluator.runScript("#{$k = 42}")).toBe("");
+      expect(WeaveScriptEvaluator.runScript("#{$k ?? 0}")).toBe("42");
+    } finally {
+      delete globalThis.state;
+    }
   });
 
   it("throws on division by zero and modulo by zero", () => {
@@ -301,8 +356,7 @@ describe("WeaveScript integration (lexer + parser + evaluator)", () => {
   });
 
   it("fails on unknown tokens in expressions (parser error)", () => {
-    // "??" becomes an identifier? No, lexer will choke on "?".
-    expect(() => WeaveScriptEvaluator.runScript("#{??}")).toThrow(
+    expect(() => WeaveScriptEvaluator.runScript("#{?}")).toThrow(
       /Unexpected character '\?'/,
     );
   });

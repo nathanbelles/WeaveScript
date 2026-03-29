@@ -30,6 +30,7 @@ vi.mock("../lexer.js", () => {
     STRING: 22,
     STATE_VAR: 23,
     NULL: 24,
+    OP_NULLCOAL: 25,
   });
 
   const TOKEN_NAMES = Object.freeze({
@@ -57,6 +58,7 @@ vi.mock("../lexer.js", () => {
     [TokenType.STRING]: "a string",
     [TokenType.STATE_VAR]: "state variable",
     [TokenType.NULL]: "null",
+    [TokenType.OP_NULLCOAL]: "??",
   });
 
   return {
@@ -396,5 +398,41 @@ describe("WeaveScriptParser", () => {
 
     expect(expr).toBeInstanceOf(WeaveScriptParser.NullLiteral);
   });
-  
+
+  it("parses null coalescing (??) with left-associative chaining", () => {
+    const ast = parseFromTokens([
+      { type: WeaveScriptLexer.TokenType.NULL, value: "null" },
+      { type: WeaveScriptLexer.TokenType.OP_NULLCOAL, value: "??" },
+      { type: WeaveScriptLexer.TokenType.NULL, value: "null" },
+      { type: WeaveScriptLexer.TokenType.OP_NULLCOAL, value: "??" },
+      { type: WeaveScriptLexer.TokenType.NUMBER, value: "3" },
+    ]);
+    const expr = ast.statements[0];
+
+    expect(expr).toBeInstanceOf(WeaveScriptParser.BinaryOp);
+    expect(expr.operator).toBe("??");
+    expect(expr.left).toBeInstanceOf(WeaveScriptParser.BinaryOp);
+    expect(expr.left.operator).toBe("??");
+    expect(expr.left.left).toBeInstanceOf(WeaveScriptParser.NullLiteral);
+    expect(expr.left.right).toBeInstanceOf(WeaveScriptParser.NullLiteral);
+    expect(expr.right).toBeInstanceOf(WeaveScriptParser.NumberLiteral);
+    expect(expr.right.value).toBe("3");
+  });
+
+  it("parses ?? at lower precedence than ||", () => {
+    const ast = parseFromTokens([
+      { type: WeaveScriptLexer.TokenType.BOOL, value: "false" },
+      { type: WeaveScriptLexer.TokenType.OP_OR, value: "||" },
+      { type: WeaveScriptLexer.TokenType.BOOL, value: "true" },
+      { type: WeaveScriptLexer.TokenType.OP_NULLCOAL, value: "??" },
+      { type: WeaveScriptLexer.TokenType.NUMBER, value: "1" },
+    ]);
+    const expr = ast.statements[0];
+
+    expect(expr).toBeInstanceOf(WeaveScriptParser.BinaryOp);
+    expect(expr.operator).toBe("??");
+    expect(expr.left).toBeInstanceOf(WeaveScriptParser.BinaryOp);
+    expect(expr.left.operator).toBe("or");
+    expect(expr.right).toBeInstanceOf(WeaveScriptParser.NumberLiteral);
+  });
 });

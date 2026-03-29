@@ -255,7 +255,7 @@ export class WeaveScriptParser {
         if(this.peek() && this.peek().type === WeaveScriptLexer.TokenType.KW_IF) {
             return this.parseIfExpr();
         }
-        return this.parseOr();
+        return this.parseNullCoal();
     }
 
     /**
@@ -265,7 +265,7 @@ export class WeaveScriptParser {
      */
     parseIfExpr() {
         this.advance();
-        const condition = this.parseOr();
+        const condition = this.parseNullCoal();
         this.expect(WeaveScriptLexer.TokenType.KW_THEN);
         const consequent = this.parseStatement();
         let alternate = null;
@@ -275,6 +275,17 @@ export class WeaveScriptParser {
         }
         return new WeaveScriptParser.IfExpr(condition, consequent, alternate);
     }
+
+    parseNullCoal() {
+        let left = this.parseOr();
+        while(this.peek() && this.peek().type === WeaveScriptLexer.TokenType.OP_NULLCOAL) {
+            this.advance();
+            const right = this.parseOr();
+            left = new WeaveScriptParser.BinaryOp("??", left, right);
+        }
+        return left;
+    }
+
 
     /**
      * Parses one or more expressions separated by logical OR operators.

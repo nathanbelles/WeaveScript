@@ -406,6 +406,119 @@ describe("WeaveScriptEvaluator.runScript", () => {
     expect(WeaveScriptEvaluator.runScript("ignored by mock")).toBe("false");
   });
 
+  it("?? returns right operand when left is NULL", () => {
+    mocked.segments.push(
+      tokenBlock(
+        new WeaveScriptParser.Block([
+          new WeaveScriptParser.BinaryOp(
+            "??",
+            new WeaveScriptParser.NullLiteral(),
+            new WeaveScriptParser.NumberLiteral("9"),
+          ),
+        ]),
+      ),
+    );
+    expect(WeaveScriptEvaluator.runScript("ignored by mock")).toBe("9");
+  });
+
+  it("?? returns left operand when left is not NULL", () => {
+    mocked.segments.push(
+      tokenBlock(
+        new WeaveScriptParser.Block([
+          new WeaveScriptParser.BinaryOp(
+            "??",
+            new WeaveScriptParser.NumberLiteral("2"),
+            new WeaveScriptParser.NumberLiteral("9"),
+          ),
+        ]),
+      ),
+    );
+    expect(WeaveScriptEvaluator.runScript("ignored by mock")).toBe("2");
+  });
+
+  it("?? does not evaluate right when left is not NULL", () => {
+    mocked.segments.push(
+      tokenBlock(
+        new WeaveScriptParser.Block([
+          new WeaveScriptParser.BinaryOp(
+            "??",
+            new WeaveScriptParser.NumberLiteral("1"),
+            new WeaveScriptParser.VariableRef("ShouldNotRead"),
+          ),
+        ]),
+      ),
+    );
+    expect(WeaveScriptEvaluator.runScript("ignored by mock")).toBe("1");
+  });
+
+  it("and does not evaluate right when left is falsey", () => {
+    mocked.segments.push(
+      tokenBlock(
+        new WeaveScriptParser.Block([
+          new WeaveScriptParser.BinaryOp(
+            "and",
+            new WeaveScriptParser.BoolLiteral(false),
+            new WeaveScriptParser.VariableRef("ShouldNotRead"),
+          ),
+        ]),
+      ),
+    );
+
+    expect(WeaveScriptEvaluator.runScript("ignored by mock")).toBe("false");
+  });
+
+  it("or does not evaluate right when left is truthy", () => {
+    mocked.segments.push(
+      tokenBlock(
+        new WeaveScriptParser.Block([
+          new WeaveScriptParser.BinaryOp(
+            "or",
+            new WeaveScriptParser.BoolLiteral(true),
+            new WeaveScriptParser.VariableRef("ShouldNotRead"),
+          ),
+        ]),
+      ),
+    );
+
+    expect(WeaveScriptEvaluator.runScript("ignored by mock")).toBe("true");
+  });
+
+  it("and evaluates right when left is truthy", () => {
+    mocked.segments.push(
+      tokenBlock(
+        new WeaveScriptParser.Block([
+          new WeaveScriptParser.BinaryOp(
+            "and",
+            new WeaveScriptParser.BoolLiteral(true),
+            new WeaveScriptParser.VariableRef("ShouldReadAndFail"),
+          ),
+        ]),
+      ),
+    );
+
+    expect(() => WeaveScriptEvaluator.runScript("ignored by mock")).toThrow(
+      /Undefined variable: ShouldReadAndFail/,
+    );
+  });
+
+  it("or evaluates right when left is falsey", () => {
+    mocked.segments.push(
+      tokenBlock(
+        new WeaveScriptParser.Block([
+          new WeaveScriptParser.BinaryOp(
+            "or",
+            new WeaveScriptParser.BoolLiteral(false),
+            new WeaveScriptParser.VariableRef("ShouldReadAndFail"),
+          ),
+        ]),
+      ),
+    );
+
+    expect(() => WeaveScriptEvaluator.runScript("ignored by mock")).toThrow(
+      /Undefined variable: ShouldReadAndFail/,
+    );
+  });
+
   it("ignores unknown segment types in runScript", () => {
     mocked.segments.push(
       new WeaveScriptLexer.PlainText("A"),
