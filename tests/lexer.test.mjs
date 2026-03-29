@@ -54,6 +54,35 @@ describe("WeaveScriptLexer", () => {
     expect(tokens.map((t) => t.value)).toEqual(["null", "??", '"x"']);
   });
 
+  it("tokenizes ternary ? and : (not as ??)", () => {
+    const segments = WeaveScriptLexer.tokenize("#{true ? 1 : 2}");
+    const tokens = segments[0];
+
+    expect(tokens.map((t) => t.type)).toEqual([
+      WeaveScriptLexer.TokenType.BOOL,
+      WeaveScriptLexer.TokenType.OP_TERNARY,
+      WeaveScriptLexer.TokenType.NUMBER,
+      WeaveScriptLexer.TokenType.COLON,
+      WeaveScriptLexer.TokenType.NUMBER,
+    ]);
+    expect(tokens.map((t) => t.value)).toEqual(["true", "?", "1", ":", "2"]);
+  });
+
+  it("tokenizes ?? before ? so mixed ?? and ternary split correctly", () => {
+    const segments = WeaveScriptLexer.tokenize("#{null ?? false ? 0 : 1}");
+    const tokens = segments[0];
+
+    expect(tokens.map((t) => t.value)).toEqual([
+      "null",
+      "??",
+      "false",
+      "?",
+      "0",
+      ":",
+      "1",
+    ]);
+  });
+
   it("finds block end when string contains braces", () => {
     const src = '#{"{ not a close } still in string"} tail';
     const end = WeaveScriptLexer.findBlockEnd(src, 2);

@@ -148,6 +148,24 @@ describe("WeaveScript integration (lexer + parser + evaluator)", () => {
     }
   });
 
+  it("ternary ?: selects consequent or alternate by truthiness", () => {
+    expect(WeaveScriptEvaluator.runScript('#{true ? "yes" : "no"}')).toBe("yes");
+    expect(WeaveScriptEvaluator.runScript('#{false ? "yes" : "no"}')).toBe("no");
+  });
+
+  it("ternary ?: composes with null coalescing", () => {
+    expect(WeaveScriptEvaluator.runScript("#{null ?? false ? 0 : 1}")).toBe("1");
+    expect(WeaveScriptEvaluator.runScript("#{true ? 1 : 2 ?? 9}")).toBe("1");
+  });
+
+  it("fails on ternary missing colon (parser error)", () => {
+    expect(() => WeaveScriptEvaluator.runScript("#{true ? 1}")).toThrow(/Expected :/);
+    expect(() => WeaveScriptEvaluator.runScript("#{true ? 1}")).toThrow(
+      /In block:\s*#\{true \? 1\}/,
+    );
+    expect(() => WeaveScriptEvaluator.runScript("#{true ? 1 2}")).toThrow(/Expected :, received 2/);
+  });
+
   it("throws on division by zero and modulo by zero", () => {
     expect(() => WeaveScriptEvaluator.runScript("#{10 / 0}")).toThrow(
       /Division by zero/,
@@ -355,9 +373,15 @@ describe("WeaveScript integration (lexer + parser + evaluator)", () => {
     );
   });
 
-  it("fails on unknown tokens in expressions (parser error)", () => {
+  it("fails on bare ternary ? without operands (parser error)", () => {
     expect(() => WeaveScriptEvaluator.runScript("#{?}")).toThrow(
-      /Unexpected character '\?'/,
+      /Unexpected token: \?/,
+    );
+  });
+
+  it("fails on unknown tokens in expressions (parser error)", () => {
+    expect(() => WeaveScriptEvaluator.runScript("#{@}")).toThrow(
+      /Unexpected character '@'/,
     );
   });
 

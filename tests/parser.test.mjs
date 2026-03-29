@@ -31,6 +31,8 @@ vi.mock("../lexer.js", () => {
     STATE_VAR: 23,
     NULL: 24,
     OP_NULLCOAL: 25,
+    OP_TERNARY: 26,
+    COLON: 27,
   });
 
   const TOKEN_NAMES = Object.freeze({
@@ -59,6 +61,8 @@ vi.mock("../lexer.js", () => {
     [TokenType.STATE_VAR]: "state variable",
     [TokenType.NULL]: "null",
     [TokenType.OP_NULLCOAL]: "??",
+    [TokenType.OP_TERNARY]: "?",
+    [TokenType.COLON]: ":",
   });
 
   return {
@@ -434,5 +438,42 @@ describe("WeaveScriptParser", () => {
     expect(expr.left).toBeInstanceOf(WeaveScriptParser.BinaryOp);
     expect(expr.left.operator).toBe("or");
     expect(expr.right).toBeInstanceOf(WeaveScriptParser.NumberLiteral);
+  });
+
+  it("parses ternary (?:) expressions as IfExpr", () => {
+    const ast = parseFromTokens([
+      { type: WeaveScriptLexer.TokenType.BOOL, value: "true" },
+      { type: WeaveScriptLexer.TokenType.OP_TERNARY, value: "?" },
+      { type: WeaveScriptLexer.TokenType.NUMBER, value: "1" },
+      { type: WeaveScriptLexer.TokenType.COLON, value: ":" },
+      { type: WeaveScriptLexer.TokenType.NUMBER, value: "2" },
+    ]);
+    const expr = ast.statements[0];
+
+    expect(expr).toBeInstanceOf(WeaveScriptParser.IfExpr);
+    expect(expr.condition).toBeInstanceOf(WeaveScriptParser.BoolLiteral);
+    expect(expr.consequent).toBeInstanceOf(WeaveScriptParser.NumberLiteral);
+    expect(expr.consequent.value).toBe("1");
+    expect(expr.alternate).toBeInstanceOf(WeaveScriptParser.NumberLiteral);
+    expect(expr.alternate.value).toBe("2");
+  });
+
+  it("throws ParserError when ternary is missing the colon", () => {
+    expect(() =>
+      parseFromTokens([
+        { type: WeaveScriptLexer.TokenType.BOOL, value: "true" },
+        { type: WeaveScriptLexer.TokenType.OP_TERNARY, value: "?" },
+        { type: WeaveScriptLexer.TokenType.NUMBER, value: "1" },
+      ]),
+    ).toThrow(/Expected :, received end of input/);
+
+    expect(() =>
+      parseFromTokens([
+        { type: WeaveScriptLexer.TokenType.BOOL, value: "true" },
+        { type: WeaveScriptLexer.TokenType.OP_TERNARY, value: "?" },
+        { type: WeaveScriptLexer.TokenType.NUMBER, value: "1" },
+        { type: WeaveScriptLexer.TokenType.NUMBER, value: "2" },
+      ]),
+    ).toThrow(/Expected :, received 2/);
   });
 });
