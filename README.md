@@ -225,6 +225,17 @@ You can also use the truthiness of null:
 #{var X = null; if !X then "missing" else X}
 ```
 
+### Null coalescing operator (`??`)
+
+Use `a ?? b` to provide a fallback when `a` is `null`:
+
+```
+#{var Title = null; Title ?? "Untitled"}
+#{$sistersName ?? "Your sister"} has the bedroom across from yours.
+```
+
+`??` only checks for `null` — it does not treat `false`, `0`, or `""` as missing.
+
 ---
 
 ## State variables
@@ -406,6 +417,16 @@ Conditionals can be nested:
 #{if Age < 13 then "child" else if Age < 18 then "teenager" else "adult"}
 ```
 
+### Ternary operator (`? :`)
+
+You can also write conditionals as `condition ? valueIfTrue : valueIfFalse`:
+
+```
+#{Age >= 18 ? "adult" : "minor"}
+```
+
+In this case the `valueIfFalse` is mandatory.
+
 ---
 
 ## Comparison operators
@@ -554,6 +575,13 @@ Is combat class: Yes
 #{if condition then valueIfTrue else valueIfFalse}
 #{if condition then valueIfTrue}
 #{if a then x else if b then y else z}
+#{condition ? valueIfTrue : valueIfFalse}
+```
+
+### Null coalescing
+
+```
+#{value ?? fallback}
 ```
 
 ### Comparisons
