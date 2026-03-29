@@ -16,6 +16,21 @@ export class WeaveScriptEvaluator {
             this.name = "Evaluator Error";
         }
     }
+
+    static appendBlockContext(error, tokenList) {
+        if (!error || typeof error !== "object") return error;
+        if (error.__weaveBlockContextAdded) return error;
+        if (!tokenList || typeof tokenList !== "object") return error;
+        const raw = tokenList.rawBlock ?? (typeof tokenList.blockSrc === "string" ? `#{${tokenList.blockSrc}}` : null);
+        if (typeof raw !== "string") return error;
+
+        const suffix = `\n\nIn block:\n${raw}`;
+        if (typeof error.message === "string" && !error.message.includes("\n\nIn block:\n")) {
+            error.message += suffix;
+        }
+        error.__weaveBlockContextAdded = true;
+        return error;
+    }
     /**
      * Converts script values to truthiness used by conditionals.
      *
@@ -171,10 +186,14 @@ export class WeaveScriptEvaluator {
             if(segment instanceof WeaveScriptLexer.PlainText) {
                 output.push(segment.text);
             } else if(segment instanceof WeaveScriptLexer.TokenList) {
-                const parser = new WeaveScriptParser(segment);
-                const ast = parser.parseBlock();
-                const result = evaluator.evaluate(ast);
-                output.push(String(result)); 
+                try {
+                    const parser = new WeaveScriptParser(segment);
+                    const ast = parser.parseBlock();
+                    const result = evaluator.evaluate(ast);
+                    output.push(String(result));
+                } catch (err) {
+                    throw WeaveScriptEvaluator.appendBlockContext(err, segment);
+                }
             }
         }
         return output.join("");

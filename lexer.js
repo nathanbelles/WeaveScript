@@ -210,6 +210,12 @@ export class WeaveScriptLexer {
                 const blockSrc = source.slice(blockStart, blockEnd);
 
                 let tokens = new this.TokenList;
+                // Preserve original block source for downstream error reporting.
+                // This is intentionally stored on the TokenList instance (not on individual tokens).
+                tokens.blockSrc = blockSrc;
+                tokens.rawBlock = `#{${blockSrc}}`;
+                tokens.blockStart = blockStart - 2; // index of '#'
+                tokens.blockEnd = blockEnd + 1;     // index after '}'
                 let pos = 0;
                 while(pos < blockSrc.length) {
                     let matched = false;

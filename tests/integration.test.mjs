@@ -97,8 +97,14 @@ describe("WeaveScript integration (lexer + parser + evaluator)", () => {
     expect(() => WeaveScriptEvaluator.runScript("#{10 / 0}")).toThrow(
       /Division by zero/,
     );
+    expect(() => WeaveScriptEvaluator.runScript("#{10 / 0}")).toThrow(
+      /In block:\s*#\{10 \/ 0\}/,
+    );
     expect(() => WeaveScriptEvaluator.runScript("#{10 % 0}")).toThrow(
       /Modulo by zero/,
+    );
+    expect(() => WeaveScriptEvaluator.runScript("#{10 % 0}")).toThrow(
+      /In block:\s*#\{10 % 0\}/,
     );
   });
 
@@ -284,6 +290,8 @@ describe("WeaveScript integration (lexer + parser + evaluator)", () => {
     // "then" keyword is required by grammar
     expect(() => WeaveScriptEvaluator.runScript('#{if true "ok" else "bad"}'))
       .toThrow(/Expected then/);
+    expect(() => WeaveScriptEvaluator.runScript('#{if true "ok" else "bad"}'))
+      .toThrow(/In block:\s*#\{if true "ok" else "bad"\}/);
   });
 
   it("fails on unmatched parentheses (parser error)", () => {
