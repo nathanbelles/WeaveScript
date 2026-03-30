@@ -144,6 +144,13 @@ export class WeaveScriptParser {
         }
     }
 
+    static FunctionCall = class {
+        constructor(identifier, args) {
+            this.identifier = identifier;
+            this.args = args;
+        }
+    }
+
     /**
      * Creates a parser instance over a token stream for a single WeaveScript block.
      *
@@ -423,6 +430,20 @@ export class WeaveScriptParser {
             case WeaveScriptLexer.TokenType.NULL:
                 this.advance();
                 return new WeaveScriptParser.NullLiteral();
+            case WeaveScriptLexer.TokenType.FUNC: {
+                const identifier = this.advance().value;
+                this.expect(WeaveScriptLexer.TokenType.LPAREN);
+                const args = [];
+                if(this.peek() && this.peek().type !== WeaveScriptLexer.TokenType.RPAREN) {
+                    args.push(this.parseExpression());
+                    while(this.peek() && this.peek().type === WeaveScriptLexer.TokenType.COMMA) {
+                        this.advance();
+                        args.push(this.parseExpression());
+                    }
+                }
+                this.expect(WeaveScriptLexer.TokenType.RPAREN);
+                return new WeaveScriptParser.FunctionCall(identifier, args);
+            }
             case WeaveScriptLexer.TokenType.IDENTIFIER:
                 this.advance();
                 return new WeaveScriptParser.VariableRef(token.value);

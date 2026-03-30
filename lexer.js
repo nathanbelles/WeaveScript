@@ -90,6 +90,8 @@ export class WeaveScriptLexer {
         'RPAREN',
         'SEMICOLON',
         'COLON',
+        'COMMA',
+        'FUNC',
         'IDENTIFIER'
     );
 
@@ -128,6 +130,8 @@ export class WeaveScriptLexer {
         [WeaveScriptLexer.TokenType.RPAREN]: /\)/,
         [WeaveScriptLexer.TokenType.SEMICOLON]: /;/,
         [WeaveScriptLexer.TokenType.COLON]: /:/,
+        [WeaveScriptLexer.TokenType.COMMA]: /,/,
+        [WeaveScriptLexer.TokenType.FUNC]: /[a-zA-Z_][a-zA-Z0-9_]*(?=\()/,
         [WeaveScriptLexer.TokenType.IDENTIFIER]: /[a-zA-Z_][a-zA-Z0-9_]*/,
     });
 
@@ -166,6 +170,8 @@ export class WeaveScriptLexer {
         [WeaveScriptLexer.TokenType.RPAREN]: ")",
         [WeaveScriptLexer.TokenType.SEMICOLON]: ";",
         [WeaveScriptLexer.TokenType.COLON]: ":",
+        [WeaveScriptLexer.TokenType.COMMA]: ",",
+        [WeaveScriptLexer.TokenType.FUNC]: "a function identifier",
         [WeaveScriptLexer.TokenType.IDENTIFIER]: "an identifier",
     });
 
