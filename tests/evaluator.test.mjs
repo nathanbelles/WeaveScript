@@ -808,6 +808,50 @@ describe("WeaveScriptEvaluator.runScript", () => {
     expect(WeaveScriptEvaluator.isTruthy(WeaveScriptEvaluator.NULL)).toBe(false);
   });
 
+  it("appendBlockContext adds block info once when message is string", () => {
+    const err = new Error("Boom");
+    const tokenList = { rawBlock: "#{1+2}" };
+
+    const r1 = WeaveScriptEvaluator.appendBlockContext(err, tokenList);
+    expect(r1).toBe(err);
+    expect(err.message).toMatch(/Boom[\s\S]*In block:\n#\{1\+2\}/);
+
+    // Calling again should not duplicate the context.
+    const msg = err.message;
+    const r2 = WeaveScriptEvaluator.appendBlockContext(err, tokenList);
+    expect(r2).toBe(err);
+    expect(err.message).toBe(msg);
+  });
+
+  it("appendBlockContext does not append when message already contains block context", () => {
+    const err = new Error("X\n\nIn block:\n#{already}");
+    const tokenList = { rawBlock: "#{new}" };
+    WeaveScriptEvaluator.appendBlockContext(err, tokenList);
+    expect(err.message).toBe("X\n\nIn block:\n#{already}");
+  });
+
+  it("appendBlockContext is a no-op for non-object errors and missing token metadata", () => {
+    // Non-object errors: returned as-is
+    expect(WeaveScriptEvaluator.appendBlockContext(null, { rawBlock: "#{x}" })).toBe(
+      null,
+    );
+    expect(WeaveScriptEvaluator.appendBlockContext("nope", { rawBlock: "#{x}" })).toBe(
+      "nope",
+    );
+
+    // Missing tokenList or missing rawBlock/blockSrc: returned as-is
+    const err = new Error("boom");
+    expect(WeaveScriptEvaluator.appendBlockContext(err, null)).toBe(err);
+    expect(WeaveScriptEvaluator.appendBlockContext(err, {})).toBe(err);
+  });
+
+  it("appendBlockContext falls back to blockSrc when rawBlock is absent", () => {
+    const err = new Error("boom");
+    const tokenList = { blockSrc: "1+2" };
+    WeaveScriptEvaluator.appendBlockContext(err, tokenList);
+    expect(err.message).toMatch(/In block:\n#\{1\+2\}/);
+  });
+
   it("covers isTruthy() for strings", () => {
     expect(WeaveScriptEvaluator.isTruthy("")).toBe(false);
     expect(WeaveScriptEvaluator.isTruthy("x")).toBe(true);
