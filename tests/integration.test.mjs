@@ -148,6 +148,20 @@ describe("WeaveScript integration (lexer + parser + evaluator)", () => {
     }
   });
 
+  it("built-in functions run end-to-end in blocks", () => {
+    expect(WeaveScriptEvaluator.runScript("#{round(2.2)}")).toBe("2");
+    expect(WeaveScriptEvaluator.runScript("#{min(3, 1, 4)}")).toBe("1");
+    expect(WeaveScriptEvaluator.runScript('#{replace("aba", "a", "x")}')).toBe(
+      "xba",
+    );
+  });
+
+  it("throws on unknown built-in name (evaluator error)", () => {
+    expect(() => WeaveScriptEvaluator.runScript("#{nope(1)}")).toThrow(
+      /Unknown function: nope/,
+    );
+  });
+
   it("ternary ?: selects consequent or alternate by truthiness", () => {
     expect(WeaveScriptEvaluator.runScript('#{true ? "yes" : "no"}')).toBe("yes");
     expect(WeaveScriptEvaluator.runScript('#{false ? "yes" : "no"}')).toBe("no");

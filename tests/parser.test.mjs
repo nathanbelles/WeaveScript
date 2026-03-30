@@ -33,6 +33,8 @@ vi.mock("../lexer.js", () => {
     OP_NULLCOAL: 25,
     OP_TERNARY: 26,
     COLON: 27,
+    FUNC: 28,
+    COMMA: 29,
   });
 
   const TOKEN_NAMES = Object.freeze({
@@ -63,6 +65,8 @@ vi.mock("../lexer.js", () => {
     [TokenType.OP_NULLCOAL]: "??",
     [TokenType.OP_TERNARY]: "?",
     [TokenType.COLON]: ":",
+    [TokenType.FUNC]: "a function identifier",
+    [TokenType.COMMA]: ",",
   });
 
   return {
@@ -456,6 +460,32 @@ describe("WeaveScriptParser", () => {
     expect(expr.consequent.value).toBe("1");
     expect(expr.alternate).toBeInstanceOf(WeaveScriptParser.NumberLiteral);
     expect(expr.alternate.value).toBe("2");
+  });
+
+  it("parses function calls with zero or more arguments", () => {
+    const noArgs = parseFromTokens([
+      { type: WeaveScriptLexer.TokenType.FUNC, value: "random" },
+      { type: WeaveScriptLexer.TokenType.LPAREN, value: "(" },
+      { type: WeaveScriptLexer.TokenType.RPAREN, value: ")" },
+    ]);
+    const noArgsExpr = noArgs.statements[0];
+    expect(noArgsExpr).toBeInstanceOf(WeaveScriptParser.FunctionCall);
+    expect(noArgsExpr.identifier).toBe("random");
+    expect(noArgsExpr.args).toEqual([]);
+
+    const twoArgs = parseFromTokens([
+      { type: WeaveScriptLexer.TokenType.FUNC, value: "min" },
+      { type: WeaveScriptLexer.TokenType.LPAREN, value: "(" },
+      { type: WeaveScriptLexer.TokenType.NUMBER, value: "1" },
+      { type: WeaveScriptLexer.TokenType.COMMA, value: "," },
+      { type: WeaveScriptLexer.TokenType.NUMBER, value: "2" },
+      { type: WeaveScriptLexer.TokenType.RPAREN, value: ")" },
+    ]);
+    const te = twoArgs.statements[0];
+    expect(te).toBeInstanceOf(WeaveScriptParser.FunctionCall);
+    expect(te.identifier).toBe("min");
+    expect(te.args[0]).toBeInstanceOf(WeaveScriptParser.NumberLiteral);
+    expect(te.args[1]).toBeInstanceOf(WeaveScriptParser.NumberLiteral);
   });
 
   it("throws ParserError when ternary is missing the colon", () => {

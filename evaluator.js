@@ -1,5 +1,6 @@
 import { WeaveScriptParser } from "./parser.js";
 import { WeaveScriptLexer } from "./lexer.js";
+import { Functions } from './funtions.js';
 
 /**
  * Evaluates WeaveScript AST nodes and renders script blocks to text.
@@ -169,6 +170,24 @@ export class WeaveScriptEvaluator {
                 return WeaveScriptEvaluator.NULL;
             }
             return state[identifier];
+        } else if (node instanceof WeaveScriptParser.FunctionCall) {
+            const functions = new Functions({isTruthy: WeaveScriptEvaluator.isTruthy});
+            const def = functions.FUNCTION_DEFS[node.identifier];
+            if(!def)  {
+                throw new WeaveScriptEvaluator.EvalError(`Unknown function: ${node.identifier}`);
+            }
+            const args = node.args.map(arg => this.evaluate(arg));
+            if(args.length < def.min || args.length > def.max) {
+                const expected = def.min === def.max ? `${def.min}` : def.max === Infinity ? `${def.min} or more` : `${def.min}-${def.max}`;
+                
+            
+                const arguentString = expected === "1" ? "argument" : "arguments";
+
+                throw new WeaveScriptEvaluator.EvalError(
+                    `${node.identifier}() expected ${expected} ${arguentString}, got ${args.length}`
+                );
+            }
+            return def.fn(args);
         } else {
             throw new WeaveScriptEvaluator.EvalError(`Unknown node type: ${node?.constructor?.name ?? node}`);
         }

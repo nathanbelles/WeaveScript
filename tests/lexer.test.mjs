@@ -68,6 +68,20 @@ describe("WeaveScriptLexer", () => {
     expect(tokens.map((t) => t.value)).toEqual(["true", "?", "1", ":", "2"]);
   });
 
+  it("tokenizes built-in function calls as FUNC plus parentheses and commas", () => {
+    const segments = WeaveScriptLexer.tokenize("#{min(1, 2)}");
+    const tokens = segments[0];
+    expect(tokens.map((t) => t.type)).toEqual([
+      WeaveScriptLexer.TokenType.FUNC,
+      WeaveScriptLexer.TokenType.LPAREN,
+      WeaveScriptLexer.TokenType.NUMBER,
+      WeaveScriptLexer.TokenType.COMMA,
+      WeaveScriptLexer.TokenType.NUMBER,
+      WeaveScriptLexer.TokenType.RPAREN,
+    ]);
+    expect(tokens.map((t) => t.value)).toEqual(["min", "(", "1", ",", "2", ")"]);
+  });
+
   it("tokenizes ?? before ? so mixed ?? and ternary split correctly", () => {
     const segments = WeaveScriptLexer.tokenize("#{null ?? false ? 0 : 1}");
     const tokens = segments[0];

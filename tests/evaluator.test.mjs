@@ -9,6 +9,15 @@ const mocked = vi.hoisted(() => {
   };
 });
 
+const builtins = vi.hoisted(() => {
+  return {
+    oneExactFn: vi.fn(() => "ONE_EXACT_RET"),
+    infiniteFn: vi.fn(() => "INFINITE_RET"),
+    twoExactFn: vi.fn(() => "TWOEXACT_RET"),
+    range2to3Fn: vi.fn(() => "RANGE_RET"),
+  };
+});
+
 vi.mock("../lexer.js", () => {
   class PlainText {
     constructor(text) {
@@ -24,6 +33,21 @@ vi.mock("../lexer.js", () => {
       tokenize: vi.fn(() => mocked.segments),
     },
   };
+});
+
+vi.mock("../funtions.js", () => {
+  class Functions {
+    constructor(utils) {
+      void utils;
+      this.FUNCTION_DEFS = Object.freeze({
+        oneExact: { min: 1, max: 1, fn: builtins.oneExactFn },
+        infinite: { min: 2, max: Infinity, fn: builtins.infiniteFn },
+        twoExact: { min: 2, max: 2, fn: builtins.twoExactFn },
+        range2to3: { min: 2, max: 3, fn: builtins.range2to3Fn },
+      });
+    }
+  }
+  return { Functions };
 });
 
 vi.mock("../parser.js", () => {
@@ -92,6 +116,12 @@ vi.mock("../parser.js", () => {
       this.identifier = identifier;
     }
   }
+  class FunctionCall {
+    constructor(identifier, args) {
+      this.identifier = identifier;
+      this.args = args;
+    }
+  }
 
   class WeaveScriptParser {
     constructor(tokens) {
@@ -118,6 +148,7 @@ vi.mock("../parser.js", () => {
   WeaveScriptParser.VariableRef = VariableRef;
   WeaveScriptParser.StateVarAssign = StateVarAssign;
   WeaveScriptParser.StateVarRef = StateVarRef;
+  WeaveScriptParser.FunctionCall = FunctionCall;
 
   return { WeaveScriptParser };
 });
@@ -796,6 +827,88 @@ describe("WeaveScriptEvaluator.runScript", () => {
     );
 
     expect(WeaveScriptEvaluator.runScript("ignored by mock")).toBe("no");
+  });
+
+  it("evaluates built-in function calls", () => {
+    builtins.oneExactFn.mockClear();
+    expect(
+      runSingleExpression(
+        new WeaveScriptParser.FunctionCall("oneExact", [
+          new WeaveScriptParser.NumberLiteral("2.7"),
+        ]),
+      ),
+    ).toBe("ONE_EXACT_RET");
+    expect(builtins.oneExactFn).toHaveBeenCalledTimes(1);
+    expect(builtins.oneExactFn).toHaveBeenCalledWith([2.7]);
+  });
+
+  it("throws on unknown function name", () => {
+    expect(() =>
+      runSingleExpression(
+        new WeaveScriptParser.FunctionCall("notABuiltin", []),
+      ),
+    ).toThrow(/Unknown function: notABuiltin/);
+  });
+
+  it("throws when argument count does not match builtin signature", () => {
+    expect(() =>
+      runSingleExpression(
+        new WeaveScriptParser.FunctionCall("oneExact", []),
+      ),
+    ).toThrow(/oneExact\(\) expected 1 argument/);
+
+    expect(() =>
+      runSingleExpression(
+        new WeaveScriptParser.FunctionCall("oneExact", [
+          new WeaveScriptParser.NumberLiteral("1"),
+          new WeaveScriptParser.NumberLiteral("2"),
+        ]),
+      ),
+    ).toThrow(/oneExact\(\) expected 1 argument/);
+  });
+
+  it("formats arity errors for exact-2, range, and variadic signatures", () => {
+    // min === max and not 1 => "2 arguments"
+    expect(() =>
+      runSingleExpression(
+        new WeaveScriptParser.FunctionCall("twoExact", [
+          new WeaveScriptParser.NumberLiteral("1"),
+        ]),
+      ),
+    ).toThrow(/twoExact\(\) expected 2 arguments, got 1/);
+
+    // min-max range => "2-3 arguments"
+    expect(() =>
+      runSingleExpression(
+        new WeaveScriptParser.FunctionCall("range2to3", [
+          new WeaveScriptParser.NumberLiteral("1"),
+        ]),
+      ),
+    ).toThrow(/range2to3\(\) expected 2-3 arguments, got 1/);
+
+    // max === Infinity => "2 or more arguments"
+    expect(() =>
+      runSingleExpression(
+        new WeaveScriptParser.FunctionCall("infinite", [
+          new WeaveScriptParser.NumberLiteral("1"),
+        ]),
+      ),
+    ).toThrow(/infinite\(\) expected 2 or more arguments, got 1/);
+  });
+
+  it("allows variadic builtins with two or more arguments", () => {
+    builtins.infiniteFn.mockClear();
+    expect(
+      runSingleExpression(
+        new WeaveScriptParser.FunctionCall("infinite", [
+          new WeaveScriptParser.NumberLiteral("1"),
+          new WeaveScriptParser.NumberLiteral("5"),
+          new WeaveScriptParser.NumberLiteral("3"),
+        ]),
+      ),
+    ).toBe("INFINITE_RET");
+    expect(builtins.infiniteFn).toHaveBeenCalledTimes(1);
+    expect(builtins.infiniteFn).toHaveBeenCalledWith([1, 5, 3]);
   });
 
   it("division works for non-zero divisors", () => {
