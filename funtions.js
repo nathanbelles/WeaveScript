@@ -1,8 +1,22 @@
+/**
+ * Built-in function library for WeaveScript function-call expressions.
+ *
+ * Each function definition includes an argument count range (`min`/`max`) and an
+ * implementation that receives evaluated argument values.
+ */
 export class Functions {
+    /**
+     * @param {{ isTruthy: (value: unknown) => boolean }} utils Utility helpers supplied by the evaluator.
+     */
     constructor(utils) {
         this.utils = utils;
     }
 
+    /**
+     * Function definitions keyed by function name.
+     *
+     * @type {Readonly<Record<string, {min:number, max:number, fn:(args: unknown[]) => unknown}>>}
+     */
     FUNCTION_DEFS = Object.freeze({
         round: {min: 1, max: 1, fn: (args) => Math.round(args[0])},
         floor: {min: 1, max: 1, fn: (args) => Math.floor(args[0])},

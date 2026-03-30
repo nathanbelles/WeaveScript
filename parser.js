@@ -144,7 +144,12 @@ export class WeaveScriptParser {
         }
     }
 
+    /** AST node representing a function call. */
     static FunctionCall = class {
+        /**
+         * @param {string} identifier Function name.
+         * @param {object[]} args Argument expression nodes.
+         */
         constructor(identifier, args) {
             this.identifier = identifier;
             this.args = args;
@@ -253,6 +258,11 @@ export class WeaveScriptParser {
         return new WeaveScriptParser.VarDecl(name, value);
     }
 
+    /**
+     * Parses ternary expressions (`condition ? consequent : alternate`).
+     *
+     * @returns {object} AST node for the ternary expression (or the underlying expression).
+     */
     parseTernary() {
         const condition = this.parseNullCoal();
         if(this.peek() && this.peek().type === WeaveScriptLexer.TokenType.OP_TERNARY) {
@@ -295,6 +305,11 @@ export class WeaveScriptParser {
         return new WeaveScriptParser.IfExpr(condition, consequent, alternate);
     }
 
+    /**
+     * Parses null-coalescing chains (`a ?? b ?? c`).
+     *
+     * @returns {object} AST node for the null-coalescing expression.
+     */
     parseNullCoal() {
         let left = this.parseOr();
         while(this.peek() && this.peek().type === WeaveScriptLexer.TokenType.OP_NULLCOAL) {

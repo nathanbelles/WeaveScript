@@ -3,8 +3,8 @@ import { WeaveScriptEvaluator } from "./evaluator.js";
 /**
  * @typedef {object} StoryCard
  * @property {number} id A unique numerical id for the story card
- * @property {date} createdAt The date and time the story card was created
- * @property {date} updatedAt The date and time the story card was last updated
+ * @property {Date} createdAt The date and time the story card was created
+ * @property {Date} updatedAt The date and time the story card was last updated
  * @property {string} keys Comma-separated keys that should cause the story card to be included in the model context
  * @property {string} entry The text that should be included in the model context if the story card is included
  * @property {string} type A text field that can be used to separate story cards into categories
@@ -43,13 +43,13 @@ export function init() {
  */
 export function updateStoryCards(storyCards) {
     
-    // Story card marker that enables WeaveScript processing.
+    /** @type {string} Story card marker that enables WeaveScript processing. */
     const ENABLE_ON_STORYCARD = '#{EnableWeaveScript: true}';
-    // Opening delimiter for generated story card script content.
+    /** @type {string} Opening delimiter for generated story card script content. */
     const STORYCARD_START = "#{";
-    // Closing delimiter for generated story card script content.
+    /** @type {string} Closing delimiter for generated story card script content. */
     const STORYCARD_END = "}";
-    // Matches the first script block in a story card entry.
+    /** @type {RegExp} Matches the first script block in a story card entry. */
     const STORYCARD_REGEX = /#{.*}/s;
 
     for(const [index, storyCard] of storyCards.entries()) {

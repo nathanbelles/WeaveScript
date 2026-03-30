@@ -35,6 +35,10 @@ export class WeaveScriptLexer {
      * @param {string} message Error details.
      */
     static LexerError = class extends Error {
+        /**
+         * @param {string} message Error details.
+         * @param {string} src Source context (typically the raw `#{...}` block).
+         */
         constructor(message, src) {
             super(message);
             this.src = src;

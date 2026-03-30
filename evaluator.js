@@ -18,6 +18,14 @@ export class WeaveScriptEvaluator {
         }
     }
 
+    /**
+     * Appends the raw `#{...}` block source to an error message (once) to make
+     * debugging user prompts easier.
+     *
+     * @param {unknown} error Error thrown while parsing/evaluating a block.
+     * @param {WeaveScriptLexer.TokenList & {rawBlock?: string, blockSrc?: string}} tokenList Token list carrying block metadata.
+     * @returns {unknown} The same error object (possibly mutated) for rethrowing.
+     */
     static appendBlockContext(error, tokenList) {
         if (!error || typeof error !== "object") return error;
         if (error.__weaveBlockContextAdded) return error;
@@ -63,7 +71,9 @@ export class WeaveScriptEvaluator {
     }
 
     /**
-     * Create a constant to represent null values
+     * Sentinel value used to represent `null`/`undefined` in WeaveScript.
+     *
+     * This converts to an empty string
      */
     static NULL = Object.freeze({
         toString() { return ""; }
