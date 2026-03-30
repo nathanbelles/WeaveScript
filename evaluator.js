@@ -201,7 +201,14 @@ export class WeaveScriptEvaluator {
      */
     static runScript(promptText) {
         const evaluator = new WeaveScriptEvaluator();
-        const segments = WeaveScriptLexer.tokenize(promptText);
+        let segments;
+        try {
+            segments = WeaveScriptLexer.tokenize(promptText);
+        } catch (err) {
+            err.message += `\n\nIn block:\n${err.src}`;
+            throw err;
+        }
+
         const output = [];
 
         for(const segment of segments) {

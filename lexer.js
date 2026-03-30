@@ -35,8 +35,9 @@ export class WeaveScriptLexer {
      * @param {string} message Error details.
      */
     static LexerError = class extends Error {
-        constructor(message) {
+        constructor(message, src) {
             super(message);
+            this.src = src;
             this.name = "Lexer Error";
         }
     }
@@ -203,7 +204,7 @@ export class WeaveScriptLexer {
                 return i;
             }
         }
-        throw new WeaveScriptLexer.LexerError('Unclosed #{ block');
+        throw new WeaveScriptLexer.LexerError('Unclosed #{ block', source.slice(start - 2));
     }
     
     /**
@@ -250,7 +251,7 @@ export class WeaveScriptLexer {
                         }
                     }
                     if(!matched) {
-                        throw new WeaveScriptLexer.LexerError(`Unexpected character '${blockSrc.slice(pos, pos+1)}' at position ${blockStart + pos + 1}`);
+                        throw new WeaveScriptLexer.LexerError(`Unexpected character '${blockSrc.slice(pos, pos+1)}' at position ${blockStart + pos + 1}`,tokens.rawBlock);
                     }
 
                 }
