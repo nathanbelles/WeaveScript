@@ -1,0 +1,40 @@
+name: Release File
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*' # Triggers on any tag starting with 'v' (e.g., v1.0.0)
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm install
+      - name: Run tests
+        run: npm run test
+      - name: Build with rollup
+        run: npm run build
+      - name: Force add and push to main
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Force add the file even if it's in .gitignore
+          git add -f dist/WeaveScript.js
+          
+          # Only commit if there are changes to avoid workflow errors
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: update release file"
+            git push origin main
+          fi
