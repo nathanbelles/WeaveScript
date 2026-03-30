@@ -29,6 +29,12 @@ vi.mock("../lexer.js", () => {
     NUMBER: 21,
     STRING: 22,
     STATE_VAR: 23,
+    NULL: 24,
+    OP_NULLCOAL: 25,
+    OP_TERNARY: 26,
+    COLON: 27,
+    FUNC: 28,
+    COMMA: 29,
   });
 
   const TOKEN_NAMES = Object.freeze({
@@ -55,6 +61,12 @@ vi.mock("../lexer.js", () => {
     [TokenType.NUMBER]: "a number",
     [TokenType.STRING]: "a string",
     [TokenType.STATE_VAR]: "state variable",
+    [TokenType.NULL]: "null",
+    [TokenType.OP_NULLCOAL]: "??",
+    [TokenType.OP_TERNARY]: "?",
+    [TokenType.COLON]: ":",
+    [TokenType.FUNC]: "a function identifier",
+    [TokenType.COMMA]: ",",
   });
 
   return {
@@ -155,6 +167,94 @@ describe("WeaveScriptParser", () => {
     expect(expr.condition.value).toBe(true);
     expect(expr.consequent).toBeInstanceOf(WeaveScriptParser.StringLiteral);
     expect(expr.alternate).toBe(null);
+  });
+
+  it("parses variable assignment in if consequent body", () => {
+    const ast = parseFromTokens([
+      { type: WeaveScriptLexer.TokenType.KW_IF, value: "if" },
+      { type: WeaveScriptLexer.TokenType.BOOL, value: "true" },
+      { type: WeaveScriptLexer.TokenType.KW_THEN, value: "then" },
+      { type: WeaveScriptLexer.TokenType.KW_VAR, value: "var" },
+      { type: WeaveScriptLexer.TokenType.IDENTIFIER, value: "X" },
+      { type: WeaveScriptLexer.TokenType.OP_ASSIGN, value: "=" },
+      { type: WeaveScriptLexer.TokenType.NUMBER, value: "1" },
+      { type: WeaveScriptLexer.TokenType.KW_ELSE, value: "else" },
+      { type: WeaveScriptLexer.TokenType.NUMBER, value: "0" },
+    ]);
+    const expr = ast.statements[0];
+
+    expect(expr).toBeInstanceOf(WeaveScriptParser.IfExpr);
+    expect(expr.consequent).toBeInstanceOf(WeaveScriptParser.VarDecl);
+    expect(expr.consequent.identifier).toBe("X");
+    expect(expr.consequent.value).toBeInstanceOf(WeaveScriptParser.NumberLiteral);
+    expect(expr.consequent.value.value).toBe("1");
+    expect(expr.alternate).toBeInstanceOf(WeaveScriptParser.NumberLiteral);
+    expect(expr.alternate.value).toBe("0");
+  });
+
+  it("parses variable assignment in else body", () => {
+    const ast = parseFromTokens([
+      { type: WeaveScriptLexer.TokenType.KW_IF, value: "if" },
+      { type: WeaveScriptLexer.TokenType.BOOL, value: "false" },
+      { type: WeaveScriptLexer.TokenType.KW_THEN, value: "then" },
+      { type: WeaveScriptLexer.TokenType.NUMBER, value: "0" },
+      { type: WeaveScriptLexer.TokenType.KW_ELSE, value: "else" },
+      { type: WeaveScriptLexer.TokenType.KW_VAR, value: "var" },
+      { type: WeaveScriptLexer.TokenType.IDENTIFIER, value: "X" },
+      { type: WeaveScriptLexer.TokenType.OP_ASSIGN, value: "=" },
+      { type: WeaveScriptLexer.TokenType.NUMBER, value: "2" },
+    ]);
+    const expr = ast.statements[0];
+
+    expect(expr).toBeInstanceOf(WeaveScriptParser.IfExpr);
+    expect(expr.consequent).toBeInstanceOf(WeaveScriptParser.NumberLiteral);
+    expect(expr.consequent.value).toBe("0");
+    expect(expr.alternate).toBeInstanceOf(WeaveScriptParser.VarDecl);
+    expect(expr.alternate.identifier).toBe("X");
+    expect(expr.alternate.value).toBeInstanceOf(WeaveScriptParser.NumberLiteral);
+    expect(expr.alternate.value.value).toBe("2");
+  });
+
+  it("parses state variable assignment in if consequent body", () => {
+    const ast = parseFromTokens([
+      { type: WeaveScriptLexer.TokenType.KW_IF, value: "if" },
+      { type: WeaveScriptLexer.TokenType.BOOL, value: "true" },
+      { type: WeaveScriptLexer.TokenType.KW_THEN, value: "then" },
+      { type: WeaveScriptLexer.TokenType.STATE_VAR, value: "$a" },
+      { type: WeaveScriptLexer.TokenType.OP_ASSIGN, value: "=" },
+      { type: WeaveScriptLexer.TokenType.NUMBER, value: "1" },
+      { type: WeaveScriptLexer.TokenType.KW_ELSE, value: "else" },
+      { type: WeaveScriptLexer.TokenType.NUMBER, value: "0" },
+    ]);
+    const expr = ast.statements[0];
+
+    expect(expr).toBeInstanceOf(WeaveScriptParser.IfExpr);
+    expect(expr.consequent).toBeInstanceOf(WeaveScriptParser.StateVarAssign);
+    expect(expr.consequent.identifier).toBe("$a");
+    expect(expr.consequent.value).toBeInstanceOf(WeaveScriptParser.NumberLiteral);
+    expect(expr.consequent.value.value).toBe("1");
+    expect(expr.alternate).toBeInstanceOf(WeaveScriptParser.NumberLiteral);
+  });
+
+  it("parses state variable assignment in else body", () => {
+    const ast = parseFromTokens([
+      { type: WeaveScriptLexer.TokenType.KW_IF, value: "if" },
+      { type: WeaveScriptLexer.TokenType.BOOL, value: "false" },
+      { type: WeaveScriptLexer.TokenType.KW_THEN, value: "then" },
+      { type: WeaveScriptLexer.TokenType.NUMBER, value: "0" },
+      { type: WeaveScriptLexer.TokenType.KW_ELSE, value: "else" },
+      { type: WeaveScriptLexer.TokenType.STATE_VAR, value: "$a" },
+      { type: WeaveScriptLexer.TokenType.OP_ASSIGN, value: "=" },
+      { type: WeaveScriptLexer.TokenType.NUMBER, value: "2" },
+    ]);
+    const expr = ast.statements[0];
+
+    expect(expr).toBeInstanceOf(WeaveScriptParser.IfExpr);
+    expect(expr.consequent).toBeInstanceOf(WeaveScriptParser.NumberLiteral);
+    expect(expr.alternate).toBeInstanceOf(WeaveScriptParser.StateVarAssign);
+    expect(expr.alternate.identifier).toBe("$a");
+    expect(expr.alternate.value).toBeInstanceOf(WeaveScriptParser.NumberLiteral);
+    expect(expr.alternate.value.value).toBe("2");
   });
 
   it("parses blank checks", () => {
@@ -296,5 +396,114 @@ describe("WeaveScriptParser", () => {
     expect(stmt.identifier).toBe("$gold");
     expect(stmt.value).toBeInstanceOf(WeaveScriptParser.NumberLiteral);
     expect(stmt.value.value).toBe("100");
+  });
+
+  it("parses null literals", () => {
+    const ast = parseFromTokens([
+      { type: WeaveScriptLexer.TokenType.NULL, value: "null" },
+    ]);
+    const expr = ast.statements[0];
+
+    expect(expr).toBeInstanceOf(WeaveScriptParser.NullLiteral);
+  });
+
+  it("parses null coalescing (??) with left-associative chaining", () => {
+    const ast = parseFromTokens([
+      { type: WeaveScriptLexer.TokenType.NULL, value: "null" },
+      { type: WeaveScriptLexer.TokenType.OP_NULLCOAL, value: "??" },
+      { type: WeaveScriptLexer.TokenType.NULL, value: "null" },
+      { type: WeaveScriptLexer.TokenType.OP_NULLCOAL, value: "??" },
+      { type: WeaveScriptLexer.TokenType.NUMBER, value: "3" },
+    ]);
+    const expr = ast.statements[0];
+
+    expect(expr).toBeInstanceOf(WeaveScriptParser.BinaryOp);
+    expect(expr.operator).toBe("??");
+    expect(expr.left).toBeInstanceOf(WeaveScriptParser.BinaryOp);
+    expect(expr.left.operator).toBe("??");
+    expect(expr.left.left).toBeInstanceOf(WeaveScriptParser.NullLiteral);
+    expect(expr.left.right).toBeInstanceOf(WeaveScriptParser.NullLiteral);
+    expect(expr.right).toBeInstanceOf(WeaveScriptParser.NumberLiteral);
+    expect(expr.right.value).toBe("3");
+  });
+
+  it("parses ?? at lower precedence than ||", () => {
+    const ast = parseFromTokens([
+      { type: WeaveScriptLexer.TokenType.BOOL, value: "false" },
+      { type: WeaveScriptLexer.TokenType.OP_OR, value: "||" },
+      { type: WeaveScriptLexer.TokenType.BOOL, value: "true" },
+      { type: WeaveScriptLexer.TokenType.OP_NULLCOAL, value: "??" },
+      { type: WeaveScriptLexer.TokenType.NUMBER, value: "1" },
+    ]);
+    const expr = ast.statements[0];
+
+    expect(expr).toBeInstanceOf(WeaveScriptParser.BinaryOp);
+    expect(expr.operator).toBe("??");
+    expect(expr.left).toBeInstanceOf(WeaveScriptParser.BinaryOp);
+    expect(expr.left.operator).toBe("or");
+    expect(expr.right).toBeInstanceOf(WeaveScriptParser.NumberLiteral);
+  });
+
+  it("parses ternary (?:) expressions as IfExpr", () => {
+    const ast = parseFromTokens([
+      { type: WeaveScriptLexer.TokenType.BOOL, value: "true" },
+      { type: WeaveScriptLexer.TokenType.OP_TERNARY, value: "?" },
+      { type: WeaveScriptLexer.TokenType.NUMBER, value: "1" },
+      { type: WeaveScriptLexer.TokenType.COLON, value: ":" },
+      { type: WeaveScriptLexer.TokenType.NUMBER, value: "2" },
+    ]);
+    const expr = ast.statements[0];
+
+    expect(expr).toBeInstanceOf(WeaveScriptParser.IfExpr);
+    expect(expr.condition).toBeInstanceOf(WeaveScriptParser.BoolLiteral);
+    expect(expr.consequent).toBeInstanceOf(WeaveScriptParser.NumberLiteral);
+    expect(expr.consequent.value).toBe("1");
+    expect(expr.alternate).toBeInstanceOf(WeaveScriptParser.NumberLiteral);
+    expect(expr.alternate.value).toBe("2");
+  });
+
+  it("parses function calls with zero or more arguments", () => {
+    const noArgs = parseFromTokens([
+      { type: WeaveScriptLexer.TokenType.FUNC, value: "random" },
+      { type: WeaveScriptLexer.TokenType.LPAREN, value: "(" },
+      { type: WeaveScriptLexer.TokenType.RPAREN, value: ")" },
+    ]);
+    const noArgsExpr = noArgs.statements[0];
+    expect(noArgsExpr).toBeInstanceOf(WeaveScriptParser.FunctionCall);
+    expect(noArgsExpr.identifier).toBe("random");
+    expect(noArgsExpr.args).toEqual([]);
+
+    const twoArgs = parseFromTokens([
+      { type: WeaveScriptLexer.TokenType.FUNC, value: "min" },
+      { type: WeaveScriptLexer.TokenType.LPAREN, value: "(" },
+      { type: WeaveScriptLexer.TokenType.NUMBER, value: "1" },
+      { type: WeaveScriptLexer.TokenType.COMMA, value: "," },
+      { type: WeaveScriptLexer.TokenType.NUMBER, value: "2" },
+      { type: WeaveScriptLexer.TokenType.RPAREN, value: ")" },
+    ]);
+    const te = twoArgs.statements[0];
+    expect(te).toBeInstanceOf(WeaveScriptParser.FunctionCall);
+    expect(te.identifier).toBe("min");
+    expect(te.args[0]).toBeInstanceOf(WeaveScriptParser.NumberLiteral);
+    expect(te.args[1]).toBeInstanceOf(WeaveScriptParser.NumberLiteral);
+  });
+
+  it("throws ParserError when ternary is missing the colon", () => {
+    expect(() =>
+      parseFromTokens([
+        { type: WeaveScriptLexer.TokenType.BOOL, value: "true" },
+        { type: WeaveScriptLexer.TokenType.OP_TERNARY, value: "?" },
+        { type: WeaveScriptLexer.TokenType.NUMBER, value: "1" },
+      ]),
+    ).toThrow(/Expected :, received end of input/);
+
+    expect(() =>
+      parseFromTokens([
+        { type: WeaveScriptLexer.TokenType.BOOL, value: "true" },
+        { type: WeaveScriptLexer.TokenType.OP_TERNARY, value: "?" },
+        { type: WeaveScriptLexer.TokenType.NUMBER, value: "1" },
+        { type: WeaveScriptLexer.TokenType.NUMBER, value: "2" },
+      ]),
+    ).toThrow(/Expected :, received 2/);
   });
 });

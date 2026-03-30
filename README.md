@@ -184,13 +184,57 @@ Today I ate cheese
 
 ### Variable types
 
-|Type|Example values|
-|---|---|
-|Number|`19`, `3.14`, `-7`|
-|String|`"hello"`, `'world'`|
-|Boolean|`true`, `false`|
+
+| Type    | Example values       |
+| ------- | -------------------- |
+| Number  | `19`, `3.14`, `-7`   |
+| String  | `"hello"`, `'world'` |
+| Boolean | `true`, `false`      |
+| Null    | `null`, `undefined`  |
+
 
 Variables can hold any of these types. The type is determined by what you assign.
+
+---
+
+## Null literals
+
+WeaveScript supports the null literals `null` and `undefined` (they are treated the same).
+
+### Output and truthiness
+
+- `null` renders as an empty string when output.
+- `null` is falsy in conditionals.
+
+```
+#{null}                         // outputs nothing
+#{if null then "yes" else "no"} // outputs: no
+```
+
+### Checking for null
+
+Use comparisons to test whether a value is null:
+
+```
+#{var X = null; if X == null then "missing" else X}
+```
+
+You can also use the truthiness of null:
+
+```
+#{var X = null; if !X then "missing" else X}
+```
+
+### Null coalescing operator (`??`)
+
+Use `a ?? b` to provide a fallback when `a` is `null`:
+
+```
+#{var Title = null; Title ?? "Untitled"}
+#{$sistersName ?? "Your sister"} has the bedroom across from yours.
+```
+
+`??` only checks for `null` — it does not treat `false`, `0`, or `""` as missing.
 
 ---
 
@@ -233,7 +277,7 @@ Unlike regular variables, state variables can be reassigned freely:
 
 ```
 #{$triggerCount = $triggerCount + 1}
-You have though about this tavern #{$triggerCount} times.
+You have thought about this tavern #{$triggerCount} times.
 ```
 
 **Flags** — remember whether something has occurred:
@@ -253,16 +297,22 @@ You have #{$gold} gold pieces.
 
 ### Regular variables vs state variables
 
-||Regular variable|State variable|
-|---|---|---|
-|Syntax|`Name`|`$Name`|
-|Persists across turns|No|Yes|
-|Persists between sections|No|Yes|
-|Needs declaration|Yes (`var`/`set`)|No|
-|Can be reassigned|No|Yes|
 
-> **Note:** Reading a state variable that has never been set will produce an error. Make sure state variables are initialised before they are read — either earlier in the same section, or in a section that runs first.
+|                           | Regular variable  | State variable |
+| ------------------------- | ----------------- | -------------- |
+| Syntax                    | `Name`            | `$Name`        |
+| Persists across turns     | No                | Yes            |
+| Persists between sections | No                | Yes            |
+| Needs declaration         | Yes (`var`/`set`) | No             |
+| Can be reassigned         | No                | Yes            |
 
+
+> **Note:** Reading a state variable that has never been set evaluates to `null`. If you need a default value, initialise it explicitly:
+>
+> ```
+> #{if $visitCount == null then $visitCount = 0}
+> #{$visitCount = $visitCount + 1}
+> ```
 
 ---
 
@@ -367,6 +417,16 @@ Conditionals can be nested:
 #{if Age < 13 then "child" else if Age < 18 then "teenager" else "adult"}
 ```
 
+### Ternary operator (`? :`)
+
+You can also write conditionals as `condition ? valueIfTrue : valueIfFalse`:
+
+```
+#{Age >= 18 ? "adult" : "minor"}
+```
+
+In this case the `valueIfFalse` is mandatory.
+
 ---
 
 ## Comparison operators
@@ -381,6 +441,48 @@ Use these inside conditions to compare values:
 |`>`|Greater than|`Age > 65`|
 |`<=`|Less than or equal|`Age <= 12`|
 |`>=`|Greater than or equal|`Age >= 18`|
+
+---
+
+## Built-in functions
+
+WeaveScript provides a small set of built-in functions you can call like `name(arg1, arg2, ...)`.
+
+### Math
+
+|Function|Args|Description|Example|
+|---|---:|---|---|
+|`round(x)`|1|Round to nearest integer|`#{round(2.2)}` → `2`|
+|`floor(x)`|1|Round down|`#{floor(2.9)}` → `2`|
+|`ceil(x)`|1|Round up|`#{ceil(2.1)}` → `3`|
+|`abs(x)`|1|Absolute value|`#{abs(-3)}` → `3`|
+|`min(a, b, ...)`|2+|Minimum of values|`#{min(5, 2, 8)}` → `2`|
+|`max(a, b, ...)`|2+|Maximum of values|`#{max(5, 2, 8)}` → `8`|
+|`clamp(x, min, max)`|3|Clamp `x` into the inclusive range `[min, max]`|`#{clamp(99, 0, 10)}` → `10`|
+|`random()`|0|Random integer from 0–99|`#{random()}`|
+|`random(max)`|1|Random integer in `[0, max)`|`#{random(10)}`|
+
+### String helpers
+
+|Function|Args|Description|Example|
+|---|---:|---|---|
+|`toUpper(s)`|1|Uppercase|`#{toUpper("ab")}` → `AB`|
+|`toLower(s)`|1|Lowercase|`#{toLower("CD")}` → `cd`|
+|`trim(s)`|1|Trim all whitespace at the beginning and end of a string|`#{trim("  x  ")}` → `x`|
+|`length(s)`|1|String length|`#{length("abc")}` → `3`|
+|`substring(s, start)`<br />`substring(s, start, end)`|2–3|Substring starting and beginning and ending at end (or the end of the string)|`#{substring("hello", 1, 4)}` → `ell`|
+|`replace(s, search, replacement)`|3|Replace first match|`#{replace("aba", "a", "x")}` → `xba`|
+
+### Coercion and type checks
+
+|Function|Args|Description|
+|---|---:|---|
+|`toNumber(x)`|1|Convert to number|
+|`toString(x)`|1|Convert to string|
+|`toBoolean(x)`|1|Convert to a boolean|
+|`isNumber(x)`|1|True if `x` is a number|
+|`isString(x)`|1|True if `x` is a string|
+|`isBoolean(x)`|1|True if `x` is a boolean|
 
 ---
 
@@ -515,6 +617,13 @@ Is combat class: Yes
 #{if condition then valueIfTrue else valueIfFalse}
 #{if condition then valueIfTrue}
 #{if a then x else if b then y else z}
+#{condition ? valueIfTrue : valueIfFalse}
+```
+
+### Null coalescing
+
+```
+#{value ?? fallback}
 ```
 
 ### Comparisons

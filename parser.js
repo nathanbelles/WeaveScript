@@ -98,6 +98,11 @@ export class WeaveScriptParser {
         }
     }
 
+    /** AST node for null literals. */
+    static NullLiteral = class {
+        constructor() { }
+    }
+
     /** AST node for regular variable references. */
     static VariableRef = class {
         /**
@@ -136,6 +141,18 @@ export class WeaveScriptParser {
         constructor(identifier, value) {
             this.identifier = identifier;
             this.value = value;
+        }
+    }
+
+    /** AST node representing a function call. */
+    static FunctionCall = class {
+        /**
+         * @param {string} identifier Function name.
+         * @param {object[]} args Argument expression nodes.
+         */
+        constructor(identifier, args) {
+            this.identifier = identifier;
+            this.args = args;
         }
     }
 
@@ -242,6 +259,23 @@ export class WeaveScriptParser {
     }
 
     /**
+     * Parses ternary expressions (`condition ? consequent : alternate`).
+     *
+     * @returns {object} AST node for the ternary expression (or the underlying expression).
+     */
+    parseTernary() {
+        const condition = this.parseNullCoal();
+        if(this.peek() && this.peek().type === WeaveScriptLexer.TokenType.OP_TERNARY) {
+            this.advance();
+            const consequent = this.parseNullCoal();
+            this.expect(WeaveScriptLexer.TokenType.COLON);
+            const alternate = this.parseNullCoal();
+            return new WeaveScriptParser.IfExpr(condition, consequent, alternate);
+        }
+        return condition;
+    }
+
+    /**
      * Parses the highest-level expression grammar.
      *
      * @returns {object} Expression AST node.
@@ -250,7 +284,7 @@ export class WeaveScriptParser {
         if(this.peek() && this.peek().type === WeaveScriptLexer.TokenType.KW_IF) {
             return this.parseIfExpr();
         }
-        return this.parseOr();
+        return this.parseTernary();
     }
 
     /**
@@ -260,16 +294,32 @@ export class WeaveScriptParser {
      */
     parseIfExpr() {
         this.advance();
-        const condition = this.parseOr();
+        const condition = this.parseTernary();
         this.expect(WeaveScriptLexer.TokenType.KW_THEN);
-        const consequent = this.parseExpression();
+        const consequent = this.parseStatement();
         let alternate = null;
         if(this.peek() && this.peek().type === WeaveScriptLexer.TokenType.KW_ELSE) {
             this.advance();
-            alternate = this.parseExpression();
+            alternate = this.parseStatement();
         }
         return new WeaveScriptParser.IfExpr(condition, consequent, alternate);
     }
+
+    /**
+     * Parses null-coalescing chains (`a ?? b ?? c`).
+     *
+     * @returns {object} AST node for the null-coalescing expression.
+     */
+    parseNullCoal() {
+        let left = this.parseOr();
+        while(this.peek() && this.peek().type === WeaveScriptLexer.TokenType.OP_NULLCOAL) {
+            this.advance();
+            const right = this.parseOr();
+            left = new WeaveScriptParser.BinaryOp("??", left, right);
+        }
+        return left;
+    }
+
 
     /**
      * Parses one or more expressions separated by logical OR operators.
@@ -392,6 +442,23 @@ export class WeaveScriptParser {
             case WeaveScriptLexer.TokenType.BOOL:
                 this.advance();
                 return new WeaveScriptParser.BoolLiteral(token.value === "true");
+            case WeaveScriptLexer.TokenType.NULL:
+                this.advance();
+                return new WeaveScriptParser.NullLiteral();
+            case WeaveScriptLexer.TokenType.FUNC: {
+                const identifier = this.advance().value;
+                this.expect(WeaveScriptLexer.TokenType.LPAREN);
+                const args = [];
+                if(this.peek() && this.peek().type !== WeaveScriptLexer.TokenType.RPAREN) {
+                    args.push(this.parseExpression());
+                    while(this.peek() && this.peek().type === WeaveScriptLexer.TokenType.COMMA) {
+                        this.advance();
+                        args.push(this.parseExpression());
+                    }
+                }
+                this.expect(WeaveScriptLexer.TokenType.RPAREN);
+                return new WeaveScriptParser.FunctionCall(identifier, args);
+            }
             case WeaveScriptLexer.TokenType.IDENTIFIER:
                 this.advance();
                 return new WeaveScriptParser.VariableRef(token.value);
