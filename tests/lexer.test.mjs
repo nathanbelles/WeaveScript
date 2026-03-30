@@ -31,6 +31,72 @@ describe("WeaveScriptLexer", () => {
     expect(tokens.map((t) => t.value)).toEqual(["1", "+", "2"]);
   });
 
+  it("tokenizes null/undefined literals inside blocks", () => {
+    const segments = WeaveScriptLexer.tokenize("A#{null}B#{undefined}C");
+    const nullTokens = segments[1];
+    const undefTokens = segments[3];
+
+    expect(nullTokens.map((t) => t.type)).toEqual([WeaveScriptLexer.TokenType.NULL]);
+    expect(nullTokens.map((t) => t.value)).toEqual(["null"]);
+    expect(undefTokens.map((t) => t.type)).toEqual([WeaveScriptLexer.TokenType.NULL]);
+    expect(undefTokens.map((t) => t.value)).toEqual(["undefined"]);
+  });
+
+  it("tokenizes null coalescing operator ??", () => {
+    const segments = WeaveScriptLexer.tokenize("#{null ?? \"x\"}");
+    const tokens = segments[0];
+
+    expect(tokens.map((t) => t.type)).toEqual([
+      WeaveScriptLexer.TokenType.NULL,
+      WeaveScriptLexer.TokenType.OP_NULLCOAL,
+      WeaveScriptLexer.TokenType.STRING,
+    ]);
+    expect(tokens.map((t) => t.value)).toEqual(["null", "??", '"x"']);
+  });
+
+  it("tokenizes ternary ? and : (not as ??)", () => {
+    const segments = WeaveScriptLexer.tokenize("#{true ? 1 : 2}");
+    const tokens = segments[0];
+
+    expect(tokens.map((t) => t.type)).toEqual([
+      WeaveScriptLexer.TokenType.BOOL,
+      WeaveScriptLexer.TokenType.OP_TERNARY,
+      WeaveScriptLexer.TokenType.NUMBER,
+      WeaveScriptLexer.TokenType.COLON,
+      WeaveScriptLexer.TokenType.NUMBER,
+    ]);
+    expect(tokens.map((t) => t.value)).toEqual(["true", "?", "1", ":", "2"]);
+  });
+
+  it("tokenizes built-in function calls as FUNC plus parentheses and commas", () => {
+    const segments = WeaveScriptLexer.tokenize("#{min(1, 2)}");
+    const tokens = segments[0];
+    expect(tokens.map((t) => t.type)).toEqual([
+      WeaveScriptLexer.TokenType.FUNC,
+      WeaveScriptLexer.TokenType.LPAREN,
+      WeaveScriptLexer.TokenType.NUMBER,
+      WeaveScriptLexer.TokenType.COMMA,
+      WeaveScriptLexer.TokenType.NUMBER,
+      WeaveScriptLexer.TokenType.RPAREN,
+    ]);
+    expect(tokens.map((t) => t.value)).toEqual(["min", "(", "1", ",", "2", ")"]);
+  });
+
+  it("tokenizes ?? before ? so mixed ?? and ternary split correctly", () => {
+    const segments = WeaveScriptLexer.tokenize("#{null ?? false ? 0 : 1}");
+    const tokens = segments[0];
+
+    expect(tokens.map((t) => t.value)).toEqual([
+      "null",
+      "??",
+      "false",
+      "?",
+      "0",
+      ":",
+      "1",
+    ]);
+  });
+
   it("finds block end when string contains braces", () => {
     const src = '#{"{ not a close } still in string"} tail';
     const end = WeaveScriptLexer.findBlockEnd(src, 2);

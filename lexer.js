@@ -35,8 +35,13 @@ export class WeaveScriptLexer {
      * @param {string} message Error details.
      */
     static LexerError = class extends Error {
-        constructor(message) {
+        /**
+         * @param {string} message Error details.
+         * @param {string} src Source context (typically the raw `#{...}` block).
+         */
+        constructor(message, src) {
             super(message);
+            this.src = src;
             this.name = "Lexer Error";
         }
     }
@@ -74,18 +79,24 @@ export class WeaveScriptLexer {
         'KW_NOT',
         'KW_IS',
         'KW_BLANK',
+        'NULL',
         'BOOL',
         'NUMBER',
         'STRING',
         'OP_CMP',
         'OP_AND',
         'OP_OR',
+        'OP_NULLCOAL',
+        'OP_TERNARY',
         'OP_NOT',
         'OP_ASSIGN',
         'OP_ARITH',
         'LPAREN',
         'RPAREN',
         'SEMICOLON',
+        'COLON',
+        'COMMA',
+        'FUNC',
         'IDENTIFIER'
     );
 
@@ -108,18 +119,24 @@ export class WeaveScriptLexer {
         [WeaveScriptLexer.TokenType.KW_NOT]: /\bnot\b/,
         [WeaveScriptLexer.TokenType.KW_IS]: /\bis\b/,
         [WeaveScriptLexer.TokenType.KW_BLANK]: /\bblank\b/,
+        [WeaveScriptLexer.TokenType.NULL]: /\b(?:null|undefined)\b/,
         [WeaveScriptLexer.TokenType.BOOL]: /\b(?:true|false)\b/,
         [WeaveScriptLexer.TokenType.NUMBER]: /\d+(?:\.\d+)?/,
         [WeaveScriptLexer.TokenType.STRING]: /(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/,
         [WeaveScriptLexer.TokenType.OP_CMP]: /==|!=|<=|>=|<|>/,
         [WeaveScriptLexer.TokenType.OP_AND]: /&&/,
         [WeaveScriptLexer.TokenType.OP_OR]: /\|\|/,
+        [WeaveScriptLexer.TokenType.OP_NULLCOAL]: /\?\?/,
+        [WeaveScriptLexer.TokenType.OP_TERNARY]: /\?/,
         [WeaveScriptLexer.TokenType.OP_NOT]: /!/,
         [WeaveScriptLexer.TokenType.OP_ASSIGN]: /=/,
         [WeaveScriptLexer.TokenType.OP_ARITH]: /[+\-*\/%]/,
         [WeaveScriptLexer.TokenType.LPAREN]: /\(/,
         [WeaveScriptLexer.TokenType.RPAREN]: /\)/,
         [WeaveScriptLexer.TokenType.SEMICOLON]: /;/,
+        [WeaveScriptLexer.TokenType.COLON]: /:/,
+        [WeaveScriptLexer.TokenType.COMMA]: /,/,
+        [WeaveScriptLexer.TokenType.FUNC]: /[a-zA-Z_][a-zA-Z0-9_]*(?=\()/,
         [WeaveScriptLexer.TokenType.IDENTIFIER]: /[a-zA-Z_][a-zA-Z0-9_]*/,
     });
 
@@ -142,18 +159,24 @@ export class WeaveScriptLexer {
         [WeaveScriptLexer.TokenType.KW_NOT]: "not",
         [WeaveScriptLexer.TokenType.KW_IS]: "is",
         [WeaveScriptLexer.TokenType.KW_BLANK]: "blank",
+        [WeaveScriptLexer.TokenType.NULL]: "null or undefined",
         [WeaveScriptLexer.TokenType.BOOL]: "true or false",
         [WeaveScriptLexer.TokenType.NUMBER]: "a number",
         [WeaveScriptLexer.TokenType.STRING]: "a string",
-        [WeaveScriptLexer.TokenType.OP_CMP]: "a relationalal operator",
+        [WeaveScriptLexer.TokenType.OP_CMP]: "a relational operator",
         [WeaveScriptLexer.TokenType.OP_AND]: "&&",
         [WeaveScriptLexer.TokenType.OP_OR]: "||",
+        [WeaveScriptLexer.TokenType.OP_NULLCOAL]: "??",
+        [WeaveScriptLexer.TokenType.OP_TERNARY]: "?",
         [WeaveScriptLexer.TokenType.OP_NOT]: "!",
         [WeaveScriptLexer.TokenType.OP_ASSIGN]: "=",
         [WeaveScriptLexer.TokenType.OP_ARITH]: "an aritmentic operator",
         [WeaveScriptLexer.TokenType.LPAREN]: "(",
         [WeaveScriptLexer.TokenType.RPAREN]: ")",
         [WeaveScriptLexer.TokenType.SEMICOLON]: ";",
+        [WeaveScriptLexer.TokenType.COLON]: ":",
+        [WeaveScriptLexer.TokenType.COMMA]: ",",
+        [WeaveScriptLexer.TokenType.FUNC]: "a function identifier",
         [WeaveScriptLexer.TokenType.IDENTIFIER]: "an identifier",
     });
 
@@ -185,7 +208,7 @@ export class WeaveScriptLexer {
                 return i;
             }
         }
-        throw new WeaveScriptLexer.LexerError('Unclosed #{ block');
+        throw new WeaveScriptLexer.LexerError('Unclosed #{ block', source.slice(start - 2));
     }
     
     /**
@@ -208,6 +231,12 @@ export class WeaveScriptLexer {
                 const blockSrc = source.slice(blockStart, blockEnd);
 
                 let tokens = new this.TokenList;
+                // Preserve original block source for downstream error reporting.
+                // This is intentionally stored on the TokenList instance (not on individual tokens).
+                tokens.blockSrc = blockSrc;
+                tokens.rawBlock = `#{${blockSrc}}`;
+                tokens.blockStart = blockStart - 2; // index of '#'
+                tokens.blockEnd = blockEnd + 1;     // index after '}'
                 let pos = 0;
                 while(pos < blockSrc.length) {
                     let matched = false;
@@ -226,7 +255,7 @@ export class WeaveScriptLexer {
                         }
                     }
                     if(!matched) {
-                        throw new WeaveScriptLexer.LexerError(`Unexpected character '${blockSrc.slice(pos, pos+1)}' at position ${blockStart + pos + 1}`);
+                        throw new WeaveScriptLexer.LexerError(`Unexpected character '${blockSrc.slice(pos, pos+1)}' at position ${blockStart + pos + 1}`,tokens.rawBlock);
                     }
 
                 }

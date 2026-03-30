@@ -9,6 +9,15 @@ const mocked = vi.hoisted(() => {
   };
 });
 
+const builtins = vi.hoisted(() => {
+  return {
+    oneExactFn: vi.fn(() => "ONE_EXACT_RET"),
+    infiniteFn: vi.fn(() => "INFINITE_RET"),
+    twoExactFn: vi.fn(() => "TWOEXACT_RET"),
+    range2to3Fn: vi.fn(() => "RANGE_RET"),
+  };
+});
+
 vi.mock("../lexer.js", () => {
   class PlainText {
     constructor(text) {
@@ -24,6 +33,21 @@ vi.mock("../lexer.js", () => {
       tokenize: vi.fn(() => mocked.segments),
     },
   };
+});
+
+vi.mock("../funtions.js", () => {
+  class Functions {
+    constructor(utils) {
+      void utils;
+      this.FUNCTION_DEFS = Object.freeze({
+        oneExact: { min: 1, max: 1, fn: builtins.oneExactFn },
+        infinite: { min: 2, max: Infinity, fn: builtins.infiniteFn },
+        twoExact: { min: 2, max: 2, fn: builtins.twoExactFn },
+        range2to3: { min: 2, max: 3, fn: builtins.range2to3Fn },
+      });
+    }
+  }
+  return { Functions };
 });
 
 vi.mock("../parser.js", () => {
@@ -73,6 +97,9 @@ vi.mock("../parser.js", () => {
       this.value = value;
     }
   }
+  class NullLiteral {
+    constructor() {}
+  }
   class VariableRef {
     constructor(identifier) {
       this.identifier = identifier;
@@ -87,6 +114,12 @@ vi.mock("../parser.js", () => {
   class StateVarRef {
     constructor(identifier) {
       this.identifier = identifier;
+    }
+  }
+  class FunctionCall {
+    constructor(identifier, args) {
+      this.identifier = identifier;
+      this.args = args;
     }
   }
 
@@ -111,9 +144,11 @@ vi.mock("../parser.js", () => {
   WeaveScriptParser.NumberLiteral = NumberLiteral;
   WeaveScriptParser.StringLiteral = StringLiteral;
   WeaveScriptParser.BoolLiteral = BoolLiteral;
+  WeaveScriptParser.NullLiteral = NullLiteral;
   WeaveScriptParser.VariableRef = VariableRef;
   WeaveScriptParser.StateVarAssign = StateVarAssign;
   WeaveScriptParser.StateVarRef = StateVarRef;
+  WeaveScriptParser.FunctionCall = FunctionCall;
 
   return { WeaveScriptParser };
 });
@@ -359,6 +394,162 @@ describe("WeaveScriptEvaluator.runScript", () => {
     );
   });
 
+  it("null literal evaluates to empty output", () => {
+    mocked.segments.push(
+      tokenBlock(
+        new WeaveScriptParser.Block([new WeaveScriptParser.NullLiteral()]),
+      ),
+    );
+    expect(WeaveScriptEvaluator.runScript("ignored by mock")).toBe("");
+  });
+
+  it("== works for NULL-valued variables", () => {
+    mocked.segments.push(
+      tokenBlock(
+        new WeaveScriptParser.Block([
+          new WeaveScriptParser.VarDecl("X", new WeaveScriptParser.NullLiteral()),
+          new WeaveScriptParser.BinaryOp(
+            "==",
+            new WeaveScriptParser.VariableRef("X"),
+            new WeaveScriptParser.NullLiteral(),
+          ),
+        ]),
+      ),
+    );
+
+    expect(WeaveScriptEvaluator.runScript("ignored by mock")).toBe("true");
+  });
+
+  it("!= works for NULL-valued variables", () => {
+    mocked.segments.push(
+      tokenBlock(
+        new WeaveScriptParser.Block([
+          new WeaveScriptParser.VarDecl("X", new WeaveScriptParser.NullLiteral()),
+          new WeaveScriptParser.BinaryOp(
+            "!=",
+            new WeaveScriptParser.VariableRef("X"),
+            new WeaveScriptParser.NullLiteral(),
+          ),
+        ]),
+      ),
+    );
+
+    expect(WeaveScriptEvaluator.runScript("ignored by mock")).toBe("false");
+  });
+
+  it("?? returns right operand when left is NULL", () => {
+    mocked.segments.push(
+      tokenBlock(
+        new WeaveScriptParser.Block([
+          new WeaveScriptParser.BinaryOp(
+            "??",
+            new WeaveScriptParser.NullLiteral(),
+            new WeaveScriptParser.NumberLiteral("9"),
+          ),
+        ]),
+      ),
+    );
+    expect(WeaveScriptEvaluator.runScript("ignored by mock")).toBe("9");
+  });
+
+  it("?? returns left operand when left is not NULL", () => {
+    mocked.segments.push(
+      tokenBlock(
+        new WeaveScriptParser.Block([
+          new WeaveScriptParser.BinaryOp(
+            "??",
+            new WeaveScriptParser.NumberLiteral("2"),
+            new WeaveScriptParser.NumberLiteral("9"),
+          ),
+        ]),
+      ),
+    );
+    expect(WeaveScriptEvaluator.runScript("ignored by mock")).toBe("2");
+  });
+
+  it("?? does not evaluate right when left is not NULL", () => {
+    mocked.segments.push(
+      tokenBlock(
+        new WeaveScriptParser.Block([
+          new WeaveScriptParser.BinaryOp(
+            "??",
+            new WeaveScriptParser.NumberLiteral("1"),
+            new WeaveScriptParser.VariableRef("ShouldNotRead"),
+          ),
+        ]),
+      ),
+    );
+    expect(WeaveScriptEvaluator.runScript("ignored by mock")).toBe("1");
+  });
+
+  it("and does not evaluate right when left is falsey", () => {
+    mocked.segments.push(
+      tokenBlock(
+        new WeaveScriptParser.Block([
+          new WeaveScriptParser.BinaryOp(
+            "and",
+            new WeaveScriptParser.BoolLiteral(false),
+            new WeaveScriptParser.VariableRef("ShouldNotRead"),
+          ),
+        ]),
+      ),
+    );
+
+    expect(WeaveScriptEvaluator.runScript("ignored by mock")).toBe("false");
+  });
+
+  it("or does not evaluate right when left is truthy", () => {
+    mocked.segments.push(
+      tokenBlock(
+        new WeaveScriptParser.Block([
+          new WeaveScriptParser.BinaryOp(
+            "or",
+            new WeaveScriptParser.BoolLiteral(true),
+            new WeaveScriptParser.VariableRef("ShouldNotRead"),
+          ),
+        ]),
+      ),
+    );
+
+    expect(WeaveScriptEvaluator.runScript("ignored by mock")).toBe("true");
+  });
+
+  it("and evaluates right when left is truthy", () => {
+    mocked.segments.push(
+      tokenBlock(
+        new WeaveScriptParser.Block([
+          new WeaveScriptParser.BinaryOp(
+            "and",
+            new WeaveScriptParser.BoolLiteral(true),
+            new WeaveScriptParser.VariableRef("ShouldReadAndFail"),
+          ),
+        ]),
+      ),
+    );
+
+    expect(() => WeaveScriptEvaluator.runScript("ignored by mock")).toThrow(
+      /Undefined variable: ShouldReadAndFail/,
+    );
+  });
+
+  it("or evaluates right when left is falsey", () => {
+    mocked.segments.push(
+      tokenBlock(
+        new WeaveScriptParser.Block([
+          new WeaveScriptParser.BinaryOp(
+            "or",
+            new WeaveScriptParser.BoolLiteral(false),
+            new WeaveScriptParser.VariableRef("ShouldReadAndFail"),
+          ),
+        ]),
+      ),
+    );
+
+    expect(() => WeaveScriptEvaluator.runScript("ignored by mock")).toThrow(
+      /Undefined variable: ShouldReadAndFail/,
+    );
+  });
+
   it("ignores unknown segment types in runScript", () => {
     mocked.segments.push(
       new WeaveScriptLexer.PlainText("A"),
@@ -368,6 +559,23 @@ describe("WeaveScriptEvaluator.runScript", () => {
     );
 
     expect(WeaveScriptEvaluator.runScript("ignored by mock")).toBe("AB");
+  });
+
+  it("includes block context for lexer errors", () => {
+    WeaveScriptLexer.tokenize.mockImplementationOnce(() => {
+      const err = new Error("Unclosed #{ block");
+      err.src = "#{1 + 2";
+      throw err;
+    });
+
+    try {
+      WeaveScriptEvaluator.runScript("ignored by mock");
+      throw new Error("expected throw");
+    } catch (err) {
+      expect(err).toBeInstanceOf(Error);
+      expect(err.message).toMatch(/Unclosed #\{ block/);
+      expect(err.message).toMatch(/In block:\n#\{1 \+ 2/);
+    }
   });
 
   it("unknown node type message handles null nodes", () => {
@@ -589,12 +797,59 @@ describe("WeaveScriptEvaluator.runScript", () => {
     expect(WeaveScriptEvaluator.runScript("ignored by mock")).toBe("123");
 
     delete globalThis.state;
-    delete WeaveScriptEvaluator.prototype.state;
   });
 
   it("covers isTruthy() for non-primitive values", () => {
     expect(WeaveScriptEvaluator.isTruthy({})).toBe(false);
     expect(WeaveScriptEvaluator.isTruthy(null)).toBe(false);
+  });
+
+  it("covers isTruthy() for NULL sentinel", () => {
+    expect(WeaveScriptEvaluator.isTruthy(WeaveScriptEvaluator.NULL)).toBe(false);
+  });
+
+  it("appendBlockContext adds block info once when message is string", () => {
+    const err = new Error("Boom");
+    const tokenList = { rawBlock: "#{1+2}" };
+
+    const r1 = WeaveScriptEvaluator.appendBlockContext(err, tokenList);
+    expect(r1).toBe(err);
+    expect(err.message).toMatch(/Boom[\s\S]*In block:\n#\{1\+2\}/);
+
+    // Calling again should not duplicate the context.
+    const msg = err.message;
+    const r2 = WeaveScriptEvaluator.appendBlockContext(err, tokenList);
+    expect(r2).toBe(err);
+    expect(err.message).toBe(msg);
+  });
+
+  it("appendBlockContext does not append when message already contains block context", () => {
+    const err = new Error("X\n\nIn block:\n#{already}");
+    const tokenList = { rawBlock: "#{new}" };
+    WeaveScriptEvaluator.appendBlockContext(err, tokenList);
+    expect(err.message).toBe("X\n\nIn block:\n#{already}");
+  });
+
+  it("appendBlockContext is a no-op for non-object errors and missing token metadata", () => {
+    // Non-object errors: returned as-is
+    expect(WeaveScriptEvaluator.appendBlockContext(null, { rawBlock: "#{x}" })).toBe(
+      null,
+    );
+    expect(WeaveScriptEvaluator.appendBlockContext("nope", { rawBlock: "#{x}" })).toBe(
+      "nope",
+    );
+
+    // Missing tokenList or missing rawBlock/blockSrc: returned as-is
+    const err = new Error("boom");
+    expect(WeaveScriptEvaluator.appendBlockContext(err, null)).toBe(err);
+    expect(WeaveScriptEvaluator.appendBlockContext(err, {})).toBe(err);
+  });
+
+  it("appendBlockContext falls back to blockSrc when rawBlock is absent", () => {
+    const err = new Error("boom");
+    const tokenList = { blockSrc: "1+2" };
+    WeaveScriptEvaluator.appendBlockContext(err, tokenList);
+    expect(err.message).toMatch(/In block:\n#\{1\+2\}/);
   });
 
   it("covers isTruthy() for strings", () => {
@@ -635,6 +890,88 @@ describe("WeaveScriptEvaluator.runScript", () => {
     expect(WeaveScriptEvaluator.runScript("ignored by mock")).toBe("no");
   });
 
+  it("evaluates built-in function calls", () => {
+    builtins.oneExactFn.mockClear();
+    expect(
+      runSingleExpression(
+        new WeaveScriptParser.FunctionCall("oneExact", [
+          new WeaveScriptParser.NumberLiteral("2.7"),
+        ]),
+      ),
+    ).toBe("ONE_EXACT_RET");
+    expect(builtins.oneExactFn).toHaveBeenCalledTimes(1);
+    expect(builtins.oneExactFn).toHaveBeenCalledWith([2.7]);
+  });
+
+  it("throws on unknown function name", () => {
+    expect(() =>
+      runSingleExpression(
+        new WeaveScriptParser.FunctionCall("notABuiltin", []),
+      ),
+    ).toThrow(/Unknown function: notABuiltin/);
+  });
+
+  it("throws when argument count does not match builtin signature", () => {
+    expect(() =>
+      runSingleExpression(
+        new WeaveScriptParser.FunctionCall("oneExact", []),
+      ),
+    ).toThrow(/oneExact\(\) expected 1 argument/);
+
+    expect(() =>
+      runSingleExpression(
+        new WeaveScriptParser.FunctionCall("oneExact", [
+          new WeaveScriptParser.NumberLiteral("1"),
+          new WeaveScriptParser.NumberLiteral("2"),
+        ]),
+      ),
+    ).toThrow(/oneExact\(\) expected 1 argument/);
+  });
+
+  it("formats arity errors for exact-2, range, and variadic signatures", () => {
+    // min === max and not 1 => "2 arguments"
+    expect(() =>
+      runSingleExpression(
+        new WeaveScriptParser.FunctionCall("twoExact", [
+          new WeaveScriptParser.NumberLiteral("1"),
+        ]),
+      ),
+    ).toThrow(/twoExact\(\) expected 2 arguments, got 1/);
+
+    // min-max range => "2-3 arguments"
+    expect(() =>
+      runSingleExpression(
+        new WeaveScriptParser.FunctionCall("range2to3", [
+          new WeaveScriptParser.NumberLiteral("1"),
+        ]),
+      ),
+    ).toThrow(/range2to3\(\) expected 2-3 arguments, got 1/);
+
+    // max === Infinity => "2 or more arguments"
+    expect(() =>
+      runSingleExpression(
+        new WeaveScriptParser.FunctionCall("infinite", [
+          new WeaveScriptParser.NumberLiteral("1"),
+        ]),
+      ),
+    ).toThrow(/infinite\(\) expected 2 or more arguments, got 1/);
+  });
+
+  it("allows variadic builtins with two or more arguments", () => {
+    builtins.infiniteFn.mockClear();
+    expect(
+      runSingleExpression(
+        new WeaveScriptParser.FunctionCall("infinite", [
+          new WeaveScriptParser.NumberLiteral("1"),
+          new WeaveScriptParser.NumberLiteral("5"),
+          new WeaveScriptParser.NumberLiteral("3"),
+        ]),
+      ),
+    ).toBe("INFINITE_RET");
+    expect(builtins.infiniteFn).toHaveBeenCalledTimes(1);
+    expect(builtins.infiniteFn).toHaveBeenCalledWith([1, 5, 3]);
+  });
+
   it("division works for non-zero divisors", () => {
     mocked.segments.push(
       tokenBlock(
@@ -651,21 +988,20 @@ describe("WeaveScriptEvaluator.runScript", () => {
     expect(WeaveScriptEvaluator.runScript("ignored by mock")).toBe("5");
   });
 
-  it("throws on undefined state variable references", () => {
+  it("missing state variable references evaluate to empty output", () => {
     globalThis.state = {};
-    WeaveScriptEvaluator.prototype.state = {};
+    try {
+      mocked.segments.push(
+        tokenBlock(
+          new WeaveScriptParser.Block([
+            new WeaveScriptParser.StateVarRef("$gold"),
+          ]),
+        ),
+      );
 
-    mocked.segments.push(
-      tokenBlock(
-        new WeaveScriptParser.Block([new WeaveScriptParser.StateVarRef("$gold")]),
-      ),
-    );
-
-    expect(() => WeaveScriptEvaluator.runScript("ignored by mock")).toThrow(
-      /Undefined state variable \$gold/,
-    );
-
-    delete globalThis.state;
-    delete WeaveScriptEvaluator.prototype.state;
+      expect(WeaveScriptEvaluator.runScript("ignored by mock")).toBe("");
+    } finally {
+      delete globalThis.state;
+    }
   });
 });

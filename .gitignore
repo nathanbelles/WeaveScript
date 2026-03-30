@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 
+# Release files
+dist/
+
 # IDE and OS files
 .DS_Store
 *.orig

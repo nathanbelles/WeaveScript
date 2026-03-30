@@ -42,6 +42,26 @@ describe("WeaveScript integration (lexer + parser + evaluator)", () => {
     expect(WeaveScriptEvaluator.runScript(input2)).toBe("ok");
   });
 
+  it("and does not evaluate right side when left is false (integration)", () => {
+    expect(WeaveScriptEvaluator.runScript("#{false and MissingVar}")).toBe("false");
+  });
+
+  it("or does not evaluate right side when left is true (integration)", () => {
+    expect(WeaveScriptEvaluator.runScript("#{true or MissingVar}")).toBe("true");
+  });
+
+  it("and evaluates right side when left is true (integration)", () => {
+    expect(() => WeaveScriptEvaluator.runScript("#{true and MissingVar}")).toThrow(
+      /Undefined variable: MissingVar/,
+    );
+  });
+
+  it("or evaluates right side when left is false (integration)", () => {
+    expect(() => WeaveScriptEvaluator.runScript("#{false or MissingVar}")).toThrow(
+      /Undefined variable: MissingVar/,
+    );
+  });
+
   it("unescapes string literals correctly", () => {
     const input = '#{"a\\\\b \\"x\\" \\\'y\\\'"}';
     expect(WeaveScriptEvaluator.runScript(input)).toBe("a\\b \"x\" 'y'");
@@ -76,12 +96,102 @@ describe("WeaveScript integration (lexer + parser + evaluator)", () => {
     );
   });
 
+  it("null and undefined literals render as empty output", () => {
+    expect(WeaveScriptEvaluator.runScript("A#{null}B")).toBe("AB");
+    expect(WeaveScriptEvaluator.runScript("A#{undefined}B")).toBe("AB");
+  });
+
+  it("if null treats null as falsey", () => {
+    expect(WeaveScriptEvaluator.runScript('#{if null then "t" else "f"}')).toBe(
+      "f",
+    );
+  });
+
+  it("if !null treats !null as truthy", () => {
+    expect(WeaveScriptEvaluator.runScript('#{if !null then "t" else "f"}')).toBe(
+      "t",
+    );
+  });
+
+  it("null coalescing ?? uses right side when left is null", () => {
+    expect(WeaveScriptEvaluator.runScript('#{null ?? "fallback"}')).toBe(
+      "fallback",
+    );
+  });
+
+  it("null coalescing ?? keeps left when left is not null", () => {
+    expect(WeaveScriptEvaluator.runScript('#{1 ?? "fallback"}')).toBe("1");
+  });
+
+  it("null coalescing ?? chains left-associatively", () => {
+    expect(WeaveScriptEvaluator.runScript("#{null ?? null ?? 7}")).toBe("7");
+  });
+
+  it("null coalescing ?? with missing state variable uses right side", () => {
+    globalThis.state = {};
+    try {
+      expect(WeaveScriptEvaluator.runScript('#{$missing ?? "default"}')).toBe(
+        "default",
+      );
+    } finally {
+      delete globalThis.state;
+    }
+  });
+
+  it("null coalescing ?? with defined state variable keeps left side", () => {
+    globalThis.state = {};
+    try {
+      expect(WeaveScriptEvaluator.runScript("#{$k = 42}")).toBe("");
+      expect(WeaveScriptEvaluator.runScript("#{$k ?? 0}")).toBe("42");
+    } finally {
+      delete globalThis.state;
+    }
+  });
+
+  it("built-in functions run end-to-end in blocks", () => {
+    expect(WeaveScriptEvaluator.runScript("#{round(2.2)}")).toBe("2");
+    expect(WeaveScriptEvaluator.runScript("#{min(3, 1, 4)}")).toBe("1");
+    expect(WeaveScriptEvaluator.runScript('#{replace("aba", "a", "x")}')).toBe(
+      "xba",
+    );
+  });
+
+  it("throws on unknown built-in name (evaluator error)", () => {
+    expect(() => WeaveScriptEvaluator.runScript("#{nope(1)}")).toThrow(
+      /Unknown function: nope/,
+    );
+  });
+
+  it("ternary ?: selects consequent or alternate by truthiness", () => {
+    expect(WeaveScriptEvaluator.runScript('#{true ? "yes" : "no"}')).toBe("yes");
+    expect(WeaveScriptEvaluator.runScript('#{false ? "yes" : "no"}')).toBe("no");
+  });
+
+  it("ternary ?: composes with null coalescing", () => {
+    expect(WeaveScriptEvaluator.runScript("#{null ?? false ? 0 : 1}")).toBe("1");
+    expect(WeaveScriptEvaluator.runScript("#{true ? 1 : 2 ?? 9}")).toBe("1");
+  });
+
+  it("fails on ternary missing colon (parser error)", () => {
+    expect(() => WeaveScriptEvaluator.runScript("#{true ? 1}")).toThrow(/Expected :/);
+    expect(() => WeaveScriptEvaluator.runScript("#{true ? 1}")).toThrow(
+      /In block:\s*#\{true \? 1\}/,
+    );
+    expect(() => WeaveScriptEvaluator.runScript("#{true ? 1 2}")).toThrow(/Expected :, received 2/);
+  });
+
   it("throws on division by zero and modulo by zero", () => {
     expect(() => WeaveScriptEvaluator.runScript("#{10 / 0}")).toThrow(
       /Division by zero/,
     );
+    expect(() => WeaveScriptEvaluator.runScript("#{10 / 0}")).toThrow(
+      /In block:\s*#\{10 \/ 0\}/,
+    );
     expect(() => WeaveScriptEvaluator.runScript("#{10 % 0}")).toThrow(
       /Modulo by zero/,
+    );
+    expect(() => WeaveScriptEvaluator.runScript("#{10 % 0}")).toThrow(
+      /In block:\s*#\{10 % 0\}/,
     );
   });
 
@@ -156,6 +266,96 @@ describe("WeaveScript integration (lexer + parser + evaluator)", () => {
     }
   });
 
+  it("variable assignment runs in if consequent body", () => {
+    expect(
+      WeaveScriptEvaluator.runScript(
+        "#{if true then var Y = 10 else var Y = 20; Y}",
+      ),
+    ).toBe("10");
+  });
+
+  it("variable assignment runs in else body", () => {
+    expect(
+      WeaveScriptEvaluator.runScript(
+        "#{if false then var Y = 10 else var Y = 20; Y}",
+      ),
+    ).toBe("20");
+  });
+
+  it("state variable assignment runs in if consequent body", () => {
+    globalThis.state = {};
+    try {
+      expect(
+        WeaveScriptEvaluator.runScript(
+          "#{if true then $flag = 30 else $flag = 40; $flag}",
+        ),
+      ).toBe("30");
+      expect(globalThis.state.flag).toBe(30);
+    } finally {
+      delete globalThis.state;
+    }
+  });
+
+  it("state variable assignment runs in else body", () => {
+    globalThis.state = {};
+    try {
+      expect(
+        WeaveScriptEvaluator.runScript(
+          "#{if false then $flag = 30 else $flag = 40; $flag}",
+        ),
+      ).toBe("40");
+      expect(globalThis.state.flag).toBe(40);
+    } finally {
+      delete globalThis.state;
+    }
+  });
+
+  it("== null works for undefined state variables", () => {
+    globalThis.state = {};
+    try {
+      expect(
+        WeaveScriptEvaluator.runScript('#{if $missing == null then "t" else "f"}'),
+      ).toBe("t");
+    } finally {
+      delete globalThis.state;
+    }
+  });
+
+  it("== null works for defined state variables", () => {
+    globalThis.state = {};
+    try {
+      expect(WeaveScriptEvaluator.runScript("#{$gold = 100}")).toBe("");
+      expect(
+        WeaveScriptEvaluator.runScript('#{if $gold == null then "t" else "f"}'),
+      ).toBe("f");
+    } finally {
+      delete globalThis.state;
+    }
+  });
+
+  it("!= null works for undefined state variables", () => {
+    globalThis.state = {};
+    try {
+      expect(
+        WeaveScriptEvaluator.runScript('#{if $missing != null then "t" else "f"}'),
+      ).toBe("f");
+    } finally {
+      delete globalThis.state;
+    }
+  });
+
+  it("!= null works for defined state variables", () => {
+    globalThis.state = {};
+    try {
+      expect(WeaveScriptEvaluator.runScript("#{$gold = 100}")).toBe("");
+      expect(
+        WeaveScriptEvaluator.runScript('#{if $gold != null then "t" else "f"}'),
+      ).toBe("t");
+    } finally {
+      delete globalThis.state;
+    }
+  });
+
   it("lexer tolerates whitespace inside blocks (integration)", () => {
     const input = "X#{  1 +\n 2\t}Y";
     expect(WeaveScriptEvaluator.runScript(input)).toBe("X3Y");
@@ -163,13 +363,13 @@ describe("WeaveScript integration (lexer + parser + evaluator)", () => {
 
   it("fails on unclosed blocks (lexer error)", () => {
     expect(() => WeaveScriptEvaluator.runScript("Start #{1 + 2")).toThrow(
-      /Unclosed #\{ block/,
+      /Unclosed #\{ block[\s\S]*In block:\n#\{1 \+ 2/,
     );
   });
 
   it("fails on unexpected characters in blocks (lexer error)", () => {
     expect(() => WeaveScriptEvaluator.runScript("X#{@}Y")).toThrow(
-      /Unexpected character '@'/,
+      /Unexpected character '@'[\s\S]*In block:\n#\{@\}/,
     );
   });
 
@@ -177,6 +377,8 @@ describe("WeaveScript integration (lexer + parser + evaluator)", () => {
     // "then" keyword is required by grammar
     expect(() => WeaveScriptEvaluator.runScript('#{if true "ok" else "bad"}'))
       .toThrow(/Expected then/);
+    expect(() => WeaveScriptEvaluator.runScript('#{if true "ok" else "bad"}'))
+      .toThrow(/In block:\s*#\{if true "ok" else "bad"\}/);
   });
 
   it("fails on unmatched parentheses (parser error)", () => {
@@ -185,19 +387,22 @@ describe("WeaveScript integration (lexer + parser + evaluator)", () => {
     );
   });
 
-  it("fails on unknown tokens in expressions (parser error)", () => {
-    // "??" becomes an identifier? No, lexer will choke on "?".
-    expect(() => WeaveScriptEvaluator.runScript("#{??}")).toThrow(
-      /Unexpected character '\?'/,
+  it("fails on bare ternary ? without operands (parser error)", () => {
+    expect(() => WeaveScriptEvaluator.runScript("#{?}")).toThrow(
+      /Unexpected token: \?/,
     );
   });
 
-  it("fails when reading an undefined state variable (evaluator error)", () => {
+  it("fails on unknown tokens in expressions (parser error)", () => {
+    expect(() => WeaveScriptEvaluator.runScript("#{@}")).toThrow(
+      /Unexpected character '@'/,
+    );
+  });
+
+  it("missing state variables render as empty output", () => {
     globalThis.state = {};
     try {
-      expect(() => WeaveScriptEvaluator.runScript("#{$gold}")).toThrow(
-        /Undefined state variable \$gold/,
-      );
+      expect(WeaveScriptEvaluator.runScript("A#{$gold}B")).toBe("AB");
     } finally {
       delete globalThis.state;
     }
