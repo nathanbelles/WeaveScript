@@ -6,7 +6,6 @@ on:
       - 'v*' # Triggers on any tag starting with 'v' (e.g., v1.0.0)
 jobs:
   build:
-    if: github.ref_type == 'tag' && github.event.base_ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
