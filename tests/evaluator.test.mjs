@@ -561,6 +561,23 @@ describe("WeaveScriptEvaluator.runScript", () => {
     expect(WeaveScriptEvaluator.runScript("ignored by mock")).toBe("AB");
   });
 
+  it("includes block context for lexer errors", () => {
+    WeaveScriptLexer.tokenize.mockImplementationOnce(() => {
+      const err = new Error("Unclosed #{ block");
+      err.src = "#{1 + 2";
+      throw err;
+    });
+
+    try {
+      WeaveScriptEvaluator.runScript("ignored by mock");
+      throw new Error("expected throw");
+    } catch (err) {
+      expect(err).toBeInstanceOf(Error);
+      expect(err.message).toMatch(/Unclosed #\{ block/);
+      expect(err.message).toMatch(/In block:\n#\{1 \+ 2/);
+    }
+  });
+
   it("unknown node type message handles null nodes", () => {
     mocked.segments.push(tokenBlock(null));
 

@@ -363,13 +363,13 @@ describe("WeaveScript integration (lexer + parser + evaluator)", () => {
 
   it("fails on unclosed blocks (lexer error)", () => {
     expect(() => WeaveScriptEvaluator.runScript("Start #{1 + 2")).toThrow(
-      /Unclosed #\{ block/,
+      /Unclosed #\{ block[\s\S]*In block:\n#\{1 \+ 2/,
     );
   });
 
   it("fails on unexpected characters in blocks (lexer error)", () => {
     expect(() => WeaveScriptEvaluator.runScript("X#{@}Y")).toThrow(
-      /Unexpected character '@'/,
+      /Unexpected character '@'[\s\S]*In block:\n#\{@\}/,
     );
   });
 
